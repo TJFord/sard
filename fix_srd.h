@@ -62,6 +62,7 @@ class FixSRD : public Fix {
   double *xwall,*xwallhold,*vwall;
   double **fwall;
   double walltrigger;
+  double **v_bc; //jifu added
 
   class AtomVecEllipsoid *avec_ellipsoid;
   class AtomVecLine *avec_line;
@@ -130,6 +131,7 @@ class FixSRD : public Fix {
     double xctr[3];      // center point of bin, only used for triclinic
     double vsum[3];      // sum of v components for SRD particles in bin
     double random;       // random value if I am owner
+    double mass;         // total mass for SRDLIKE collision //jifu added
   };
 
   struct BinComm {

@@ -38,7 +38,15 @@ FixWallSRD::FixWallSRD(LAMMPS *lmp, int narg, char **arg) :
   Fix(lmp, narg, arg)
 {
   if (narg < 4) error->all(FLERR,"Illegal fix wall/srd command");
-
+  // jifu created for bc
+  memory->create(v_bc,6,3,"wall/srd:v_bc");
+  //initialize with zero
+  for (int i=0;i<6;i++){
+    for (int j=0;j<3;j++){
+      v_bc[i][j]=0;
+    }
+  }
+      
   // parse args
 
   nwall = 0;
@@ -49,7 +57,8 @@ FixWallSRD::FixWallSRD(LAMMPS *lmp, int narg, char **arg) :
     if ((strcmp(arg[iarg],"xlo") == 0) || (strcmp(arg[iarg],"xhi") == 0) ||
         (strcmp(arg[iarg],"ylo") == 0) || (strcmp(arg[iarg],"yhi") == 0) ||
         (strcmp(arg[iarg],"zlo") == 0) || (strcmp(arg[iarg],"zhi") == 0)) {
-      if (iarg+2 > narg) error->all(FLERR,"Illegal fix wall/srd command");
+      //if (iarg+2 > narg) error->all(FLERR,"Illegal fix wall/srd command");
+      if (iarg+5 > narg) error->all(FLERR,"Illegal fix wall/srd command");//jifu added vx,vy,vz
 
       int newwall;
       if (strcmp(arg[iarg],"xlo") == 0) newwall = XLO;
@@ -64,24 +73,42 @@ FixWallSRD::FixWallSRD(LAMMPS *lmp, int narg, char **arg) :
           error->all(FLERR,"Wall defined twice in fix wall/srd command");
 
       wallwhich[nwall] = newwall;
+      
       if (strcmp(arg[iarg+1],"EDGE") == 0) {
         wallstyle[nwall] = EDGE;
         int dim = wallwhich[nwall] / 2;
         int side = wallwhich[nwall] % 2;
         if (side == 0) coord0[nwall] = domain->boxlo[dim];
         else coord0[nwall] = domain->boxhi[dim];
+	// jifu added
+	v_bc[nwall][0]=atof(arg[iarg+2]);
+	v_bc[nwall][1]=atof(arg[iarg+3]);
+	v_bc[nwall][2]=atof(arg[iarg+4]);// eol jifu
+	
       } else if (strstr(arg[iarg+1],"v_") == arg[iarg+1]) {
+	//jifu check variable
+	printf("varialbe name: %s ", arg[iarg+1]); //eol jifu
         wallstyle[nwall] = VARIABLE;
         int n = strlen(&arg[iarg+1][2]) + 1;
         varstr[nwall] = new char[n];
         strcpy(varstr[nwall],&arg[iarg+1][2]);
+	// jifu added
+	v_bc[nwall][0]=atof(arg[iarg+2]);
+	v_bc[nwall][1]=atof(arg[iarg+3]);
+	v_bc[nwall][2]=atof(arg[iarg+4]);// eol jifu	
       } else {
         wallstyle[nwall] = CONSTANT;
         coord0[nwall] = atof(arg[iarg+1]);
+	// jifu added
+	v_bc[nwall][0]=atof(arg[iarg+2]);
+	v_bc[nwall][1]=atof(arg[iarg+3]);
+	v_bc[nwall][2]=atof(arg[iarg+4]);// eol jifu
+	
       }
 
       nwall++;
-      iarg += 2;
+      //iarg += 2;//jifu changed
+      iarg += 5;
 
     } else if (strcmp(arg[iarg],"units") == 0) {
       if (iarg+2 > narg) error->all(FLERR,"Illegal wall/srd command");
@@ -172,6 +199,7 @@ FixWallSRD::~FixWallSRD()
     if (wallstyle[m] == VARIABLE) delete [] varstr[m];
   memory->destroy(fwall);
   memory->destroy(fwall_all);
+  memory->destroy(v_bc);//jifu added to remove velocity for bc
 }
 
 /* ---------------------------------------------------------------------- */
@@ -246,7 +274,7 @@ void FixWallSRD::wall_params(int flag)
       xwall[m] = xnew;
       vwall[m] = (xwall[m] - xwalllast[m]) / dt;
     }
-
+    
     fwall[m][0] = fwall[m][1] = fwall[m][2] = 0.0;
   }
 

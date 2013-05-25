@@ -30,6 +30,7 @@ class FixWallSRD : public Fix {
   int wallwhich[6];
   double xwall[6],xwallhold[6],vwall[6];
   double **fwall;
+  double **v_bc; //velocity of boundary
 
   FixWallSRD(class LAMMPS *, int, char **);
   ~FixWallSRD();
