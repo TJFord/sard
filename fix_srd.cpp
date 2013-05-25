@@ -53,11 +53,15 @@ enum{SHIFT_NO,SHIFT_YES,SHIFT_POSSIBLE};
 
 enum{NO_REMAP,X_REMAP,V_REMAP};                   // same as fix_deform.cpp
 
+enum{XLO,XHI,YLO,YHI,ZLO,ZHI};    //jifu added for v_bc
+enum{INEXACT, EXACT, SRDLIKE};    //jifu added for srd like big particles
+
 #define EINERTIA 0.2          // moment of inertia prefactor for ellipsoid
 
 #define ATOMPERBIN 30
 #define BIG 1.0e20
-#define VBINSIZE 5
+//#define VBINSIZE 5 //original
+#define VBINSIZE 6  //jifu changed
 #define TOLERANCE 0.00001
 #define MAXITER 20
 
@@ -82,7 +86,7 @@ FixSRD::FixSRD(LAMMPS *lmp, int narg, char **arg) : Fix(lmp, narg, arg)
   bigexist = 1;
   if (strcmp(arg[4],"NULL") == 0) bigexist = 0;
   else biggroup = group->find(arg[4]);
-
+  
   temperature_srd = atof(arg[5]);
   gridsrd = atof(arg[6]);
   int seed = atoi(arg[7]);
@@ -131,10 +135,16 @@ FixSRD::FixSRD(LAMMPS *lmp, int narg, char **arg) : Fix(lmp, narg, arg)
       iarg += 2;
     } else if (strcmp(arg[iarg],"exact") == 0) {
       if (iarg+2 > narg) error->all(FLERR,"Illegal fix srd command");
-      if (strcmp(arg[iarg+1],"yes") == 0) exactflag = 1;
+      /*if (strcmp(arg[iarg+1],"yes") == 0) exactflag = 1;
       else if (strcmp(arg[iarg+1],"no") == 0) exactflag = 0;
       else error->all(FLERR,"Illegal fix srd command");
-      iarg += 2;
+      iarg += 2;*///original
+      //jifu 
+      if (strcmp(arg[iarg+1],"yes") == 0) exactflag = EXACT;
+      else if (strcmp(arg[iarg+1],"no") == 0) exactflag = INEXACT;
+      else if (strcmp(arg[iarg+1],"srdlike") == 0) exactflag = SRDLIKE;
+      else error->all(FLERR,"Illegal fix srd command");
+      iarg += 2;//eol jifu
     } else if (strcmp(arg[iarg],"radius") == 0) {
       if (iarg+2 > narg) error->all(FLERR,"Illegal fix srd command");
       radfactor = atof(arg[iarg+1]);
@@ -329,6 +339,7 @@ void FixSRD::init()
       vwall = wallfix->vwall;
       fwall = wallfix->fwall;
       walltrigger = 0.5 * neighbor->skin;
+      v_bc = wallfix->v_bc; //jifu added
       if (wallfix->overlap && overlap == 0 && me == 0)
         error->warning(FLERR,
                        "Fix SRD walls overlap but fix srd overlap not set");
@@ -359,7 +370,7 @@ void FixSRD::init()
   // parameterize based on current box volume
 
   dimension = domain->dimension;
-  parameterize();
+  parameterize();// set up time, shift, mass,vol.
 
   // limit initial SRD velocities if necessary
 
@@ -438,7 +449,7 @@ void FixSRD::pre_neighbor()
   double xlamda[3];
 
   // grow SRD per-atom bin arrays if necessary
-
+  
   if (atom->nlocal > nmax) {
     nmax = atom->nmax;
     memory->destroy(binsrd);
@@ -446,7 +457,7 @@ void FixSRD::pre_neighbor()
     memory->create(binsrd,nmax,"fix/srd:binsrd");
     memory->create(binnext,nmax,"fix/srd:binnext");
   }
-
+  //printf("natoms "BIGINT_FORMAT" nmax %d\n",atom->natoms, atom->nmax);//jifu
   // setup and grow BIG info list if necessary
   // set index ptrs to BIG particles and to WALLS
   // big_static() adds static properties to info list
@@ -525,7 +536,7 @@ void FixSRD::pre_neighbor()
     i = nbig = 0;
     while (i < nall) {
       if (mask[i] & biggroupbit) {
-        ix = static_cast<int> ((x[i][0]-xblo2)*bininv2x);
+        ix = static_cast<int> ((x[i][0]-xblo2)*bininv2x);//xblo2 = subboxlo[0] - nx*binsize2x;
         iy = static_cast<int> ((x[i][1]-yblo2)*bininv2y);
         iz = static_cast<int> ((x[i][2]-zblo2)*bininv2z);
         ibin = iz*nbin2y*nbin2x + iy*nbin2x + ix;
@@ -568,22 +579,22 @@ void FixSRD::pre_neighbor()
   // if wall moves, add walltrigger to its position
   // this insures it is added to all search bins it may move into
   // may not overlap any of my search bins
-
+  //printf("how many nbigs? %d\n",nbig);//jifu added
   if (wallexist) {
     double delta = 0.0;
     if (wallvarflag) delta = walltrigger;
-
+    
     for (m = 0; m < nwall; m++) {
       int dim = wallwhich[m] / 2;
       int side = wallwhich[m] % 2;
-
+      //printf("dim= %d, side=%d\n",dim,side);//jifu
       if (dim == 0) {
         if (side == 0) {
           hi = static_cast<int> ((xwall[m]+delta-xblo2)*bininv2x);
           if (hi < 0) continue;
           if (hi >= nbin2x) error->all(FLERR,
                                        "Fix SRD: bad search bin assignment");
-          lo = 0;
+          lo = 0;	  
         } else {
           lo = static_cast<int> ((xwall[m]-delta-xblo2)*bininv2x);
           if (lo >= nbin2x) continue;
@@ -607,20 +618,24 @@ void FixSRD::pre_neighbor()
           if (hi >= nbin2y) error->all(FLERR,
                                        "Fix SRD: bad search bin assignment");
           lo = 0;
+	  //printf("ylow: %d, %d\n",lo, hi);//jifu
         } else {
           lo = static_cast<int> ((xwall[m]-delta-yblo2)*bininv2y);
           if (lo >= nbin2y) continue;
           if (lo < 0) error->all(FLERR,"Fix SRD: bad search bin assignment");
           hi = nbin2y-1;
+	  //printf("ytop: %d, %d\n",lo, hi);//jifu
         }
 
         for (iy = lo; iy <= hi; iy++)
           for (ix = 0; ix < nbin2x; ix++)
             for (iz = 0; iz < nbin2z; iz++) {
               ibin = iz*nbin2y*nbin2x + iy*nbin2x + ix;
-              if (nbinbig[ibin] == ATOMPERBIN)
-                error->all(FLERR,"Fix SRD: too many walls in bin");
-              binbig[ibin][nbinbig[ibin]++] = nbig+m;
+              if (nbinbig[ibin] == ATOMPERBIN)  
+		error->all(FLERR,"Fix SRD: too many walls in bin");
+	      //printf("before ibin=%d,binbig=%d,nbig+m=%d\n",ibin,nbig,binbig[ibin][0],m+nbig);//jifu              
+	      binbig[ibin][nbinbig[ibin]++] = nbig+m;
+	      //printf("after ibin=%d,binbig=%d,nbig+m=%d\n",ibin,binbig[ibin][0],m+nbig);//jifu
             }
 
       } else if (dim == 2) {
@@ -652,7 +667,7 @@ void FixSRD::pre_neighbor()
   // rotate SRD velocities on SRD timestep
   // done now since all SRDs are currently inside my sub-domain
 
-  if (reneighflag == SRD_ROTATE) reset_velocities();
+  if (reneighflag == SRD_ROTATE) reset_velocities(); 
 
   // log stats if reneighboring occurred b/c SRDs moved too far
 
@@ -682,14 +697,14 @@ void FixSRD::post_force(int vflag)
   int nlocal = atom->nlocal;
   int nall = nlocal + atom->nghost;
   if (bigexist == 0) nall = 0;
-
+  
   for (i = nlocal; i < nall; i++)
     f[i][0] = f[i][1] = f[i][2] = 0.0;
 
   if (collidestyle == NOSLIP)
     for (i = nlocal; i < nall; i++)
       torque[i][0] = torque[i][1] = torque[i][2] = 0.0;
-
+     
   // advect SRD particles
   // assign to search bins if big particles or walls exist
 
@@ -697,38 +712,112 @@ void FixSRD::post_force(int vflag)
   double **x = atom->x;
   double **v = atom->v;
 
+  //jifu added for gravity
+  double *rmass=atom->rmass;//set type mass,set.cpp
+  double *mass=atom->mass;//mass 1 1
+  int *type=atom->type;
+  
   if (bigexist || wallexist) {
-    for (i = 0; i < nlocal; i++)
-      if (mask[i] & groupbit) {
-        x[i][0] += dt_big*v[i][0];
-        x[i][1] += dt_big*v[i][1];
-        x[i][2] += dt_big*v[i][2];
+    if (rmass){ //jifu added
+      for (i = 0; i < nlocal; i++)	
+	if (mask[i] & groupbit) {//only for srd particles
+	  //jifu added gravity effect to velocity
+	  //fprintf(screen,"v = %g %g %g %d %d\n",v[i][0],v[i][1],v[i][2],i,nlocal);//jifu
+	  //if (i==66) printf("i=%d, before v %f %f %f\n",i,v[i][0],v[i][1],v[i][2]);//
+	  v[i][0] += 0.5*dt_big*f[i][0]/rmass[i]*force->ftm2v;
+	  v[i][1] += 0.5*dt_big*f[i][1]/rmass[i]*force->ftm2v;
+	  v[i][2] += 0.5*dt_big*f[i][2]/rmass[i]*force->ftm2v;
+	  x[i][0] += dt_big*v[i][0];
+	  x[i][1] += dt_big*v[i][1];
+	  x[i][2] += dt_big*v[i][2];
+	  v[i][0] += 0.5*dt_big*f[i][0]/rmass[i]*force->ftm2v;
+	  v[i][1] += 0.5*dt_big*f[i][1]/rmass[i]*force->ftm2v;
+	  v[i][2] += 0.5*dt_big*f[i][2]/rmass[i]*force->ftm2v;
+	  
+	  //if (atom->f[i][0] !=0) printf("the %d atom components of force, mass, %f, %f, %f\n",i,atom->f[i][0],rmass[i],force->ftm2v);
 
-        ix = static_cast<int> ((x[i][0]-xblo2)*bininv2x);
-        iy = static_cast<int> ((x[i][1]-yblo2)*bininv2y);
-        iz = static_cast<int> ((x[i][2]-zblo2)*bininv2z);
-        binsrd[i] = iz*nbin2y*nbin2x + iy*nbin2x + ix;
+	  ix = static_cast<int> ((x[i][0]-xblo2)*bininv2x);
+	  iy = static_cast<int> ((x[i][1]-yblo2)*bininv2y);
+	  iz = static_cast<int> ((x[i][2]-zblo2)*bininv2z);
+	  binsrd[i] = iz*nbin2y*nbin2x + iy*nbin2x + ix;
+	  //printf("i=%d, binsrd=%d, %d,%d,%d,nbinsq2=%d\n",i,binsrd[i],nbin2y,nbin2x,ix,nbins2);//jifu
 
-        if (ix < 0 || ix >= nbin2x || iy < 0 || iy >= nbin2y ||
-            iz < 0 || iz >= nbin2z) {
-          if (screen) {
-            fprintf(screen,"SRD particle %d on step " BIGINT_FORMAT "\n",
-                    atom->tag[i],update->ntimestep);
-            fprintf(screen,"v = %g %g %g\n",v[i][0],v[i][1],v[i][2]);
-            fprintf(screen,"x = %g %g %g\n",x[i][0],x[i][1],x[i][2]);
-            fprintf(screen,"ix,iy,iz nx,ny,nz = %d %d %d %d %d %d\n",
-                    ix,iy,iz,nbin2x,nbin2y,nbin2z);
-          }
-          error->one(FLERR,"Fix SRD: bad bin assignment for SRD advection");
-        }
-      }
+	  if (ix < 0 || ix >= nbin2x || iy < 0 || iy >= nbin2y ||
+	      iz < 0 || iz >= nbin2z) {
+	    if (screen) {
+	      //printf("f[i],dt_big %g,%g\n",f[i][0],dt_big);//jifu
+	      fprintf(screen,"SRD particle %d on step " BIGINT_FORMAT "\n",
+		      atom->tag[i],update->ntimestep);
+	      fprintf(screen,"v = %g %g %g\n",v[i][0],v[i][1],v[i][2]);
+	      fprintf(screen,"x = %g %g %g\n",x[i][0],x[i][1],x[i][2]);
+	      fprintf(screen,"ix,iy,iz nx,ny,nz = %d %d %d %d %d %d\n",
+		      ix,iy,iz,nbin2x,nbin2y,nbin2z);
+	    }
+	    error->one(FLERR,"Fix SRD: bad bin assignment for SRD advection");
+	  }
+	}
+    } else {
+      for (i = 0; i < nlocal; i++)
+	if (mask[i] & groupbit) {
+	  //jifu added gravity effect to velocity
+	  v[i][0] += 0.5*dt_big*f[i][0]/mass[type[i]]*force->ftm2v;
+	  v[i][1] += 0.5*dt_big*f[i][1]/mass[type[i]]*force->ftm2v;
+	  v[i][2] += 0.5*dt_big*f[i][2]/mass[type[i]]*force->ftm2v;
+	  x[i][0] += dt_big*v[i][0];
+	  x[i][1] += dt_big*v[i][1];
+	  x[i][2] += dt_big*v[i][2];
+	  v[i][0] += 0.5*dt_big*f[i][0]/mass[type[i]]*force->ftm2v;
+	  v[i][1] += 0.5*dt_big*f[i][1]/mass[type[i]]*force->ftm2v;
+	  v[i][2] += 0.5*dt_big*f[i][2]/mass[type[i]]*force->ftm2v;
+	  
+	  ix = static_cast<int> ((x[i][0]-xblo2)*bininv2x);
+	  iy = static_cast<int> ((x[i][1]-yblo2)*bininv2y);
+	  iz = static_cast<int> ((x[i][2]-zblo2)*bininv2z);
+	  binsrd[i] = iz*nbin2y*nbin2x + iy*nbin2x + ix;
 
-  } else {
-    for (i = 0; i < nlocal; i++)
-      if (mask[i] & groupbit) {
-        x[i][0] += dt_big*v[i][0];
-        x[i][1] += dt_big*v[i][1];
-        x[i][2] += dt_big*v[i][2];
+	  if (ix < 0 || ix >= nbin2x || iy < 0 || iy >= nbin2y ||
+	      iz < 0 || iz >= nbin2z) {
+	    if (screen) {
+	      fprintf(screen,"SRD particle %d on step " BIGINT_FORMAT "\n",
+		      atom->tag[i],update->ntimestep);
+	      fprintf(screen,"v = %g %g %g\n",v[i][0],v[i][1],v[i][2]);
+	      fprintf(screen,"x = %g %g %g\n",x[i][0],x[i][1],x[i][2]);
+	      fprintf(screen,"ix,iy,iz nx,ny,nz = %d %d %d %d %d %d\n",
+		      ix,iy,iz,nbin2x,nbin2y,nbin2z);
+	    }
+	    error->one(FLERR,"Fix SRD: bad bin assignment for SRD advection");
+	  }
+	}   
+
+    } 
+  }else {
+      if (rmass){
+	for (i = 0; i < nlocal; i++)
+	  if (mask[i] & groupbit) {
+	    v[i][0] += 0.5*dt_big*f[i][0]/mass[i]*force->ftm2v;
+	    v[i][1] += 0.5*dt_big*f[i][1]/mass[i]*force->ftm2v;
+	    v[i][2] += 0.5*dt_big*f[i][2]/mass[i]*force->ftm2v;
+	    x[i][0] += dt_big*v[i][0];
+	    x[i][1] += dt_big*v[i][1];
+	    x[i][2] += dt_big*v[i][2];
+	    v[i][0] += 0.5*dt_big*f[i][0]/mass[i]*force->ftm2v;
+	    v[i][1] += 0.5*dt_big*f[i][1]/mass[i]*force->ftm2v;
+	    v[i][2] += 0.5*dt_big*f[i][2]/mass[i]*force->ftm2v;	    
+	  }
+      }else {
+	for (i = 0; i < nlocal; i++)
+	  if (mask[i] & groupbit) {
+	    v[i][0] += 0.5*dt_big*f[i][0]/mass[type[i]]*force->ftm2v;
+	    v[i][1] += 0.5*dt_big*f[i][1]/mass[type[i]]*force->ftm2v;
+	    v[i][2] += 0.5*dt_big*f[i][2]/mass[type[i]]*force->ftm2v;
+	    x[i][0] += dt_big*v[i][0];
+	    x[i][1] += dt_big*v[i][1];
+	    x[i][2] += dt_big*v[i][2];
+	    v[i][0] += 0.5*dt_big*f[i][0]/mass[type[i]]*force->ftm2v;
+	    v[i][1] += 0.5*dt_big*f[i][1]/mass[type[i]]*force->ftm2v;
+	    v[i][2] += 0.5*dt_big*f[i][2]/mass[type[i]]*force->ftm2v;
+	    
+	  }
       }
   }
 
@@ -796,11 +885,13 @@ void FixSRD::post_force(int vflag)
 
 void FixSRD::reset_velocities()
 {
-  int i,j,n,ix,iy,iz,ibin,axis,sign,irandom;
+  int i,j,n,k,m,n_avg_srd,bigtype,ix,iy,iz,ibin,axis,sign,irandom;//jifu added
   double u[3],vsum[3];
   double vx,vy,vz,vsq,tbin,scale;
   double *vave,*vnew,*xlamda;
   double vstream[3];
+  Big *big;//jifu added
+  double mass_sum;//jifu added
 
   // if requested, perform a dynamic shift of bin positions
 
@@ -832,52 +923,136 @@ void FixSRD::reset_velocities()
   double **x = atom->x;
   double **v = atom->v;
   int nlocal = atom->nlocal;
+  //jifu added
+  double *rmass = atom->rmass;
+  double *mass = atom->mass;
+  int *type = atom->type;
+  //eol
 
   if (triclinic) domain->x2lamda(nlocal);
 
   for (i = 0; i < nbins; i++) binhead[i] = -1;
 
-  for (i = 0; i < nlocal; i++)
-    if (mask[i] & groupbit) {
-      ix = static_cast<int> ((x[i][0]-corner[0])*bininv1x);
-      ix = MAX(ix,binlo[0]);
-      ix = MIN(ix,binhi[0]);
-      iy = static_cast<int> ((x[i][1]-corner[1])*bininv1y);
-      iy = MAX(iy,binlo[1]);
-      iy = MIN(iy,binhi[1]);
-      iz = static_cast<int> ((x[i][2]-corner[2])*bininv1z);
-      iz = MAX(iz,binlo[2]);
-      iz = MIN(iz,binhi[2]);
+  //testing jifu
+  //for(i=0;i<nlocal;i++)
+  //  printf("mask=%d, groupbit=%d, and=%d, biggroupbit=%d, biggroup=%d\n",mask[i],groupbit,(mask[i] & groupbit),biggroupbit,biggroup);
+  //eol jifu
 
-      ibin = (iz-binlo[2])*nbiny*nbinx + (iy-binlo[1])*nbinx + (ix-binlo[0]);
-      binnext[i] = binhead[ibin];
-      binhead[ibin] = i;
-    }
+  for (i = 0; i < nlocal; i++){
+    if (exactflag != SRDLIKE) {//jifu added
+      if (mask[i] & groupbit) {
+	ix = static_cast<int> ((x[i][0]-corner[0])*bininv1x);
+	ix = MAX(ix,binlo[0]);
+	ix = MIN(ix,binhi[0]);
+	iy = static_cast<int> ((x[i][1]-corner[1])*bininv1y);
+	iy = MAX(iy,binlo[1]);
+	iy = MIN(iy,binhi[1]);
+	iz = static_cast<int> ((x[i][2]-corner[2])*bininv1z);
+	iz = MAX(iz,binlo[2]);
+	iz = MIN(iz,binhi[2]);
+
+	ibin = (iz-binlo[2])*nbiny*nbinx + (iy-binlo[1])*nbinx + (ix-binlo[0]);
+	binnext[i] = binhead[ibin];
+	binhead[ibin] = i;
+      }
+    } else {
+      if ((mask[i] & groupbit) || (mask[i] & biggroupbit) ) {// jifu added
+	ix = static_cast<int> ((x[i][0]-corner[0])*bininv1x);
+	ix = MAX(ix,binlo[0]);
+	ix = MIN(ix,binhi[0]);
+	iy = static_cast<int> ((x[i][1]-corner[1])*bininv1y);
+	iy = MAX(iy,binlo[1]);
+	iy = MIN(iy,binhi[1]);
+	iz = static_cast<int> ((x[i][2]-corner[2])*bininv1z);
+	iz = MAX(iz,binlo[2]);
+	iz = MIN(iz,binhi[2]);
+
+	ibin = (iz-binlo[2])*nbiny*nbinx + (iy-binlo[1])*nbinx + (ix-binlo[0]);
+	binnext[i] = binhead[ibin];
+	binhead[ibin] = i;
+      }     
+    }//eol:jifu
+  }
 
   if (triclinic) domain->lamda2x(nlocal);
 
   // for each bin I have particles contributing to:
   // compute summed v of particles in that bin
   // if I own the bin, set its random value, else set to 0.0
-
+  
   for (i = 0; i < nbins; i++) {
     n = 0;
+    mass_sum = 0;
     vsum[0] = vsum[1] = vsum[2] = 0.0;
-    for (j = binhead[i]; j >= 0; j = binnext[j]) {
-      vsum[0] += v[j][0];
-      vsum[1] += v[j][1];
-      vsum[2] += v[j][2];
-      n++;
+    if (exactflag == SRDLIKE){//jifu 
+      for (j = binhead[i]; j >= 0; j = binnext[j]) {
+	if (rmass){
+	  vsum[0] += v[j][0]*rmass[j];
+	  vsum[1] += v[j][1]*rmass[j];
+	  vsum[2] += v[j][2]*rmass[j];
+	  mass_sum += rmass[j];
+	} else {
+	  vsum[0] += v[j][0]*mass[type[j]];
+	  vsum[1] += v[j][1]*mass[type[j]];
+	  vsum[2] += v[j][2]*mass[type[j]];
+	  mass_sum += mass[type[j]];
+	}
+	n++;
+      }//eol:jifu
+    } else {
+      for (j = binhead[i]; j >= 0; j = binnext[j]) {
+	vsum[0] += v[j][0];
+	vsum[1] += v[j][1];
+	vsum[2] += v[j][2];
+	n++;
+      }
     }
-
+    //printf("total srd+big: %d\n",ix);//jifu check the total srd number, it is correct
+    // printf("bin %d, %d ptls, mass_sum %g\n",i,n,mass_sum);//jifu
+    // virtual particles for BC
+    
+    for(j = binhead[i]; j >= 0; j = binnext[j]) {
+	if (mask[j] & groupbit) {
+	  ibin=binsrd[j];// keep in mind: ibin != i
+	  nbig = nbinbig[ibin];
+	  for ( int jj = 0; jj < nbig; jj++) {
+	    k = binbig[ibin][jj];
+	    big = &biglist[k];
+	    m = big->index;
+	    n_avg_srd = static_cast<int> (srd_per_cell);
+	    bigtype = big->type;
+	    if ( (bigtype == WALL) && ( n < n_avg_srd) ){
+	      if (exactflag == SRDLIKE) {
+		vsum[0] += (n_avg_srd - n)* v_bc[m][0]*mass_srd;
+		vsum[1] += (n_avg_srd - n)* v_bc[m][1]*mass_srd;
+		vsum[2] += (n_avg_srd - n)* v_bc[m][2]*mass_srd;
+		n = n_avg_srd;
+		mass_sum += (n_avg_srd - n)*mass_srd;//jifu added
+	      } else {
+		vsum[0] += (n_avg_srd - n)* v_bc[m][0];
+		vsum[1] += (n_avg_srd - n)* v_bc[m][1];
+		vsum[2] += (n_avg_srd - n)* v_bc[m][2];
+		n = n_avg_srd;
+	      }	    
+	    }
+	  }
+	  break;//just need to find one SRD particle
+	} 	    
+    }//eol: vp, jifu
+    
     vbin[i].vsum[0] = vsum[0];
     vbin[i].vsum[1] = vsum[1];
     vbin[i].vsum[2] = vsum[2];
     vbin[i].n = n;
+    vbin[i].mass = mass_sum;//jifu
+    //printf("i %d, mass_sum %g\n",i,mass_sum);//jifu
+
     if (vbin[i].owner) vbin[i].random = random->uniform();
     else vbin[i].random = 0.0;
+    
   }
-
+  
+  
   // communicate bin info for bins which more than 1 proc contribute to
 
   if (shifts[shiftflag].commflag) vbin_comm(shiftflag);
@@ -912,14 +1087,22 @@ void FixSRD::reset_velocities()
   if (dimension == 2) axis = 2;
   double *h_rate = domain->h_rate;
   double *h_ratelo = domain->h_ratelo;
-
+  
   for (i = 0; i < nbins; i++) {
     n = vbin[i].n;
+    mass_sum = vbin[i].mass;//jifu
     if (n == 0) continue;
+    if (mass_sum == 0) continue;//jifu
     vave = vbin[i].vsum;
-    vave[0] /= n;
-    vave[1] /= n;
-    vave[2] /= n;
+    if (exactflag == SRDLIKE) {
+      vave[0] /= mass_sum;
+      vave[1] /= mass_sum;
+      vave[2] /= mass_sum;
+    } else {     
+      vave[0] /= n;
+      vave[1] /= n;
+      vave[2] /= n;
+    }
 
     irandom = static_cast<int> (6.0*vbin[i].random);
     sign = irandom % 2;
@@ -944,6 +1127,7 @@ void FixSRD::reset_velocities()
       v[j][0] = u[0] + vave[0];
       v[j][1] = u[1] + vave[1];
       v[j][2] = u[2] + vave[2];
+      //printf("%d v=%g %g %g\n",j,v[j][0],v[j][1],v[j][2]);//jifu
     }
 
     if (tstat && n > 1) {
@@ -983,7 +1167,7 @@ void FixSRD::reset_velocities()
     if (n > 1) srd_bin_temp += vsq/(n-dof_temp);
     if (vbin[i].owner) srd_bin_count++;
   }
-
+  
   srd_bin_temp *= tfactor;
 
   // rescale any too-large velocities
@@ -1080,6 +1264,7 @@ void FixSRD::vbin_pack(BinAve *vbin, int n, int *list, double *buf)
     buf[m++] = vbin[j].vsum[1];
     buf[m++] = vbin[j].vsum[2];
     buf[m++] = vbin[j].random;
+    buf[m++] = vbin[j].mass;//jifu added
   }
 }
 
@@ -1098,6 +1283,7 @@ void FixSRD::vbin_unpack(double *buf, BinAve *vbin, int n, int *list)
     vbin[j].vsum[1] += buf[m++];
     vbin[j].vsum[2] += buf[m++];
     vbin[j].random += buf[m++];
+    vbin[j].mass += buf[m++]; //jifu added
   }
 }
 
@@ -1130,16 +1316,17 @@ void FixSRD::collisions_single()
   int *mask = atom->mask;
   int nlocal = atom->nlocal;
 
-  for (i = 0; i < nlocal; i++) {
+   for (i = 0; i < nlocal; i++) {
     if (!(mask[i] & groupbit)) continue;
 
-    ibin = binsrd[i];
+     ibin = binsrd[i];
+   
     if (nbinbig[ibin] == 0) continue;
 
     ibounce = 0;
     collide_flag = 1;
     dt = dt_big;
-
+    
     while (collide_flag) {
       nbig = nbinbig[ibin];
       if (ibounce == 0) ncheck += nbig;
@@ -1150,13 +1337,18 @@ void FixSRD::collisions_single()
         big = &biglist[k];
         j = big->index;
         type = big->type;
-
-        if (type == SPHERE) inside = inside_sphere(x[i],x[j],big);
-        else if (type == ELLIPSOID) inside = inside_ellipsoid(x[i],x[j],big);
-        else inside = inside_wall(x[i],j);
-
+	if (exactflag != SRDLIKE){//jifu
+	  if (type == SPHERE) inside = inside_sphere(x[i],x[j],big);
+	  else if (type == ELLIPSOID) inside = inside_ellipsoid(x[i],x[j],big);
+	  else inside = inside_wall(x[i],j);
+	}else {
+	  if (type == WALL) {
+	    inside=inside_wall(x[i],j);
+	  }
+	}
+	
         if (inside) {
-          if (exactflag) {
+          if (exactflag == EXACT) { //jifu changed
             if (type == SPHERE)
               t_remain = collision_sphere_exact(x[i],x[j],v[i],v[j],big,
                                                 xscoll,xbcoll,norm);
@@ -1166,7 +1358,7 @@ void FixSRD::collisions_single()
             else
               t_remain = collision_wall_exact(x[i],j,v[i],xscoll,xbcoll,norm);
 
-          } else {
+          } else if (exactflag == INEXACT) {//jifu changed
             t_remain = 0.5*dt;
             if (type == SPHERE)
               collision_sphere_inexact(x[i],x[j],big,xscoll,xbcoll,norm);
@@ -1174,44 +1366,58 @@ void FixSRD::collisions_single()
               collision_ellipsoid_inexact(x[i],x[j],big,xscoll,xbcoll,norm);
             else
               collision_wall_inexact(x[i],j,xscoll,xbcoll,norm);
-          }
-
+          } else {
+	    t_remain = 0.5*dt;
+	    if (type == WALL)  collision_wall_inexact(x[i],j,xscoll,xbcoll,norm);
+	      } //jifu
+	  
 #ifdef SRD_DEBUG
           if (update->ntimestep == SRD_DEBUG_TIMESTEP &&
               atom->tag[i] == SRD_DEBUG_ATOMID)
             print_collision(i,j,ibounce,t_remain,dt,xscoll,xbcoll,norm,type);
 #endif
-
-          if (t_remain > dt) {
-            ninside++;
-            if (insideflag == INSIDE_ERROR || insideflag == INSIDE_WARN) {
-              char str[128];
-              if (type != WALL)
-                sprintf(str,
-                        "SRD particle %d started "
-                        "inside big particle %d on step " BIGINT_FORMAT
-                        " bounce %d",
-                        atom->tag[i],atom->tag[j],update->ntimestep,ibounce+1);
-              else
-                sprintf(str,
-                        "SRD particle %d started "
-                        "inside big particle %d on step " BIGINT_FORMAT
-                        " bounce %d",
-                        atom->tag[i],atom->tag[j],update->ntimestep,ibounce+1);
-              if (insideflag == INSIDE_ERROR) error->one(FLERR,str);
-              error->warning(FLERR,str);
-            }
-            break;
-          }
-
-          if (collidestyle == SLIP) {
-            if (type != WALL) slip(v[i],v[j],x[j],big,xscoll,norm,vsnew);
-            else slip_wall(v[i],j,norm,vsnew);
-          } else {
-            if (type != WALL) noslip(v[i],v[j],x[j],big,-1, xscoll,norm,vsnew);
-            else noslip(v[i],NULL,x[j],big,j,xscoll,norm,vsnew);
-          }
-
+	  if (exactflag != SRDLIKE) {//jifu
+	    if (t_remain > dt) {
+	      ninside++;
+	      if (insideflag == INSIDE_ERROR || insideflag == INSIDE_WARN) {
+		char str[128];
+		if (type != WALL)
+		  sprintf(str,
+			  "SRD particle %d started "
+			  "inside big particle %d on step " BIGINT_FORMAT
+			  " bounce %d",
+			  atom->tag[i],atom->tag[j],update->ntimestep,ibounce+1);
+		else
+		  sprintf(str,
+			  "SRD particle %d started "
+			  "inside big particle %d on step " BIGINT_FORMAT
+			  " bounce %d",
+			  atom->tag[i],atom->tag[j],update->ntimestep,ibounce+1);
+		if (insideflag == INSIDE_ERROR) error->one(FLERR,str);
+		error->warning(FLERR,str);
+	      }
+	      break;
+	    }
+	  }//jifu
+	  
+	  if (exactflag != SRDLIKE){//jifu added
+	    if (collidestyle == SLIP) {
+	      if (type != WALL) slip(v[i],v[j],x[j],big,xscoll,norm,vsnew);
+	      else slip_wall(v[i],j,norm,vsnew);
+	    } else {
+	      if (type != WALL) noslip(v[i],v[j],x[j],big,-1, xscoll,norm,vsnew);
+	      else noslip(v[i],NULL,x[j],big,j,xscoll,norm,vsnew);
+	    }
+	  } else {//jifu added
+	    if (collidestyle == SLIP) {
+	      if (type == WALL) slip_wall(v[i],j,norm,vsnew);
+	    } else {
+	      if (type == WALL) {
+		noslip(v[i],NULL,x[j],big,j,xscoll,norm,vsnew);
+	      }//jifu
+	    }
+	  }//eol jifu
+	  
           if (dimension == 2) vsnew[2] = 0.0;
 
           // check on rescaling of vsnew
@@ -1225,26 +1431,34 @@ void FixSRD::collisions_single()
 
           // update BIG particle and WALL and SRD
           // BIG particle is not torqued if sphere and SLIP collision
+	  if (exactflag != SRDLIKE) {//jifu
+	    if (collidestyle == SLIP && type == SPHERE)
+	      force_torque(v[i],vsnew,xscoll,xbcoll,f[j],NULL);
+	    else if (type != WALL)
+	      force_torque(v[i],vsnew,xscoll,xbcoll,f[j],torque[j]);
+	    else if (type == WALL)
+	      force_wall(v[i],vsnew,j);
 
-          if (collidestyle == SLIP && type == SPHERE)
-            force_torque(v[i],vsnew,xscoll,xbcoll,f[j],NULL);
-          else if (type != WALL)
-            force_torque(v[i],vsnew,xscoll,xbcoll,f[j],torque[j]);
-          else if (type == WALL)
-            force_wall(v[i],vsnew,j);
+	    ibin = binsrd[i] = update_srd(i,t_remain,xscoll,vsnew,x[i],v[i]);
 
-          ibin = binsrd[i] = update_srd(i,t_remain,xscoll,vsnew,x[i],v[i]);
+	    if (ibounce == 0) ncollide++;
+	    ibounce++;
+	    if (ibounce < maxbounceallow || maxbounceallow == 0)
+	      collide_flag = 1;
+	    dt = t_remain;
 
-          if (ibounce == 0) ncollide++;
-          ibounce++;
-          if (ibounce < maxbounceallow || maxbounceallow == 0)
-            collide_flag = 1;
-          dt = t_remain;
+	  } else {
+	    if (type == WALL){ 
+	      force_wall(v[i],vsnew,j);//jifu, not useful in my case
+	      ibin = binsrd[i] = update_srd(i,t_remain,xscoll,vsnew,x[i],v[i]);
+	    }
+	  }//eol jifu
+	  
           break;
         }
       }
     }
-
+    
     nbounce += ibounce;
     if (maxbounceallow && ibounce >= maxbounceallow) bouncemaxnum++;
     if (ibounce > bouncemax) bouncemax = ibounce;
@@ -1387,7 +1601,7 @@ void FixSRD::collisions_multi()
         if (type != WALL) slip(v[i],v[j],x[j],big,xscoll,norm,vsnew);
         else slip_wall(v[i],j,norm,vsnew);
       } else {
-        if (type != WALL) noslip(v[i],v[j],x[j],big,-1,xscoll,norm,vsnew);
+	if (type != WALL) noslip(v[i],v[j],x[j],big,-1,xscoll,norm,vsnew);
         else noslip(v[i],NULL,x[j],big,j,xscoll,norm,vsnew);
       }
 
@@ -2217,7 +2431,7 @@ void FixSRD::noslip(double *vs, double *vb, double *xb, Big *big, int iwall,
 {
   double vs_dot_n,scale,r1,r2,vnmag,vtmag1,vtmag2;
   double tangent1[3],tangent2[3];
-
+  
   vs_dot_n = vs[0]*norm[0] + vs[1]*norm[1] + vs[2]*norm[2];
 
   tangent1[0] = vs[0] - vs_dot_n*norm[0];
@@ -2241,10 +2455,17 @@ void FixSRD::noslip(double *vs, double *vb, double *xb, Big *big, int iwall,
     vtmag2 = sigma * random->gaussian();
     if (vnmag*vnmag + vtmag1*vtmag1 + vtmag2*vtmag2 <= vmaxsq) break;
   }
-
+  
   vsnew[0] = vnmag*norm[0] + vtmag1*tangent1[0] + vtmag2*tangent2[0];
   vsnew[1] = vnmag*norm[1] + vtmag1*tangent1[1] + vtmag2*tangent2[1];
   vsnew[2] = vnmag*norm[2] + vtmag1*tangent1[2] + vtmag2*tangent2[2];
+  /*----------------------------------------------------------------------end of Jifu */
+  /* jifu added for reversing the velocity ********/
+  /*
+  vsnew[0] = -vs[0];
+  vsnew[1] = -vs[1];
+  vsnew[2] = -vs[2];
+  -------end of jifu reversing velocity--------*/
 
   // add in velocity of collision pt
   // for WALL: velocity of wall in one dim
@@ -2253,12 +2474,25 @@ void FixSRD::noslip(double *vs, double *vb, double *xb, Big *big, int iwall,
   if (big->type == WALL) {
     int dim = wallwhich[iwall] / 2;
     vsnew[dim] += vwall[iwall];
-
+    //printf("the %d velocity is: %f\n",iwall,vwall[iwall]);
+    //switch (wallwhich[iwall]){
+    //case XLO:
+      vsnew[0] += v_bc[iwall][0];
+      vsnew[1] += v_bc[iwall][1];
+      vsnew[2] += v_bc[iwall][2];
+      //}
+    /*if (wallwhich[iwall]==0) {
+      vsnew[1] += 0.01;
+      //printf("wall position: %f",xwall[iwall]);
+    } //eof jifu
+    */
   } else {
-    double *omega = big->omega;
-    vsnew[0] += vb[0] + omega[1]*(xsurf[2]-xb[2]) - omega[2]*(xsurf[1]-xb[1]);
-    vsnew[1] += vb[1] + omega[2]*(xsurf[0]-xb[0]) - omega[0]*(xsurf[2]-xb[2]);
-    vsnew[2] += vb[2] + omega[0]*(xsurf[1]-xb[1]) - omega[1]*(xsurf[0]-xb[0]);
+    if (exactflag != SRDLIKE ){
+      double *omega = big->omega;
+      vsnew[0] += vb[0] + omega[1]*(xsurf[2]-xb[2]) - omega[2]*(xsurf[1]-xb[1]);
+      vsnew[1] += vb[1] + omega[2]*(xsurf[0]-xb[0]) - omega[0]*(xsurf[2]-xb[2]);
+      vsnew[2] += vb[2] + omega[0]*(xsurf[1]-xb[1]) - omega[1]*(xsurf[0]-xb[0]);
+    }
   }
 }
 
@@ -2420,7 +2654,7 @@ void FixSRD::parameterize()
         length = MAX(length,length3);
         maxbigdiam = MAX(maxbigdiam,length);
         minbigdiam = MIN(minbigdiam,length);
-      } else
+      } else 
         error->one(FLERR,"Big particle in fix srd cannot be point particle");
     }
 
@@ -2472,8 +2706,10 @@ void FixSRD::parameterize()
 
   int flagall;
   MPI_Allreduce(&flag,&flagall,1,MPI_INT,MPI_MAX,world);
-  if (flagall)
+  //jifu commented out
+  /*if (flagall)
     error->all(FLERR,"Fix srd requires SRD particles all have same mass");
+  */ //eol: jifu comment
 
   // set temperature and lamda of SRD particles from each other
   // lamda = dt_srd * sqrt(boltz * temperature_srd / mass_srd);
@@ -3179,6 +3415,7 @@ void FixSRD::setup_velocity_shift(int ishift, int dynamic)
   int nbinsq = nbinx*nbiny;
   nbinsq = MAX(nbiny*nbinz,nbinsq);
   nbinsq = MAX(nbinx*nbinz,nbinsq);
+  //printf("setupvel:nbins=%d\n",nbins); //jifu
 
   shifts[ishift].nbins = nbins;
   shifts[ishift].nbinx = nbinx;
@@ -3454,7 +3691,7 @@ void FixSRD::setup_search_bins()
   bininv2x = 1.0/binsize2x;
   bininv2y = 1.0/binsize2y;
   bininv2z = 1.0/binsize2z;
-
+  
   // add bins on either end due to extent of big particles
   // radmax = max distance from central bin that biggest particle overlaps
   // includes skin movement
@@ -3480,6 +3717,7 @@ void FixSRD::setup_search_bins()
   // first deallocate previous bins if necessary
 
   nbins2 = nbin2x*nbin2y*nbin2z;
+  //printf("%d of bins, including %d extra\n",nbins2,nx);//jifu
   if (nbins2 > maxbin2) {
     memory->destroy(nbinbig);
     memory->destroy(binbig);
@@ -3573,7 +3811,7 @@ double FixSRD::bin_bin_distance(int i, int j, int k)
 {
   double delx,dely,delz;
 
-  if (i > 0) delx = (i-1)*binsize2x;
+  if (i > 0) delx = (i-1)*binsize2x; //binsize2x = (subboxhi[0] - subboxlo[0]) / nbin2x;
   else if (i == 0) delx = 0.0;
   else delx = (i+1)*binsize2x;
 
