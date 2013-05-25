@@ -1,0 +1,162 @@
+atom.cpp:  molecular = avec->molecular;
+atom.cpp:  avec->init();
+atom.cpp:  if (nwords != avec->size_data_atom && nwords != avec->size_data_atom + 3)
+atom.cpp:  xptr = avec->xcol_data - 1;
+atom.cpp:  if (nwords > avec->size_data_atom) imageflag = 1;
+atom.cpp:      avec->data_atom(xdata,imagedata,values);
+atom.cpp:  if (nwords != avec->size_data_vel)
+atom.cpp:    if ((m = map(tagdata)) >= 0) avec->data_vel(m,&values[1]);
+atom.cpp:  if (avec->mass_type) {
+atom.cpp:  if (nlocal == nmax) avec->grow(0);
+atom.cpp:      avec->copy(i,nlocal,0);
+atom.cpp:      avec->copy(nfirst,i,0);
+atom.cpp:      avec->copy(nlocal,nfirst,0);
+atom.cpp:  if (nlocal == nmax) avec->grow(0);
+atom.cpp:    avec->copy(i,nlocal,0);
+atom.cpp:      avec->copy(permute[empty],empty,0);
+atom.cpp:    avec->copy(nlocal,empty,0);
+atom.cpp:  bigint bytes = avec->memory_usage();
+comm.cpp:  comm_x_only = atom->avec->comm_x_only;
+comm.cpp:  comm_f_only = atom->avec->comm_f_only;
+comm.cpp:  size_forward = atom->avec->size_forward;
+comm.cpp:  size_reverse = atom->avec->size_reverse;
+comm.cpp:  size_border = atom->avec->size_border;
+comm.cpp:  if (ghost_velocity) size_forward += atom->avec->size_velocity;
+comm.cpp:  if (ghost_velocity) size_border += atom->avec->size_velocity;
+comm.cpp:        n = avec->pack_comm(sendnum[iswap],sendlist[iswap],
+comm.cpp:        n = avec->pack_comm_vel(sendnum[iswap],sendlist[iswap],
+comm.cpp:        avec->unpack_comm_vel(recvnum[iswap],firstrecv[iswap],buf_recv);
+comm.cpp:        n = avec->pack_comm(sendnum[iswap],sendlist[iswap],
+comm.cpp:        avec->unpack_comm(recvnum[iswap],firstrecv[iswap],buf_recv);
+comm.cpp:          n = avec->pack_comm(sendnum[iswap],sendlist[iswap],
+comm.cpp:        n = avec->pack_comm_vel(sendnum[iswap],sendlist[iswap],
+comm.cpp:        avec->unpack_comm_vel(recvnum[iswap],firstrecv[iswap],buf_send);
+comm.cpp:        n = avec->pack_comm(sendnum[iswap],sendlist[iswap],
+comm.cpp:        avec->unpack_comm(recvnum[iswap],firstrecv[iswap],buf_send);
+comm.cpp:        n = avec->pack_reverse(recvnum[iswap],firstrecv[iswap],buf_send);
+comm.cpp:      avec->unpack_reverse(sendnum[iswap],sendlist[iswap],buf_recv);
+comm.cpp:            avec->unpack_reverse(sendnum[iswap],sendlist[iswap],
+comm.cpp:        n = avec->pack_reverse(recvnum[iswap],firstrecv[iswap],buf_send);
+comm.cpp:        avec->unpack_reverse(sendnum[iswap],sendlist[iswap],buf_send);
+comm.cpp:        nsend += avec->pack_exchange(i,&buf_send[nsend]);
+comm.cpp:        avec->copy(nlocal-1,i,1);
+comm.cpp:      if (value >= lo && value < hi) m += avec->unpack_exchange(&buf[m]);
+comm.cpp:  atom->avec->clear_bonus();
+comm.cpp:        n = avec->pack_border_vel(nsend,sendlist[iswap],buf_send,
+comm.cpp:        n = avec->pack_border(nsend,sendlist[iswap],buf_send,
+comm.cpp:        avec->unpack_border_vel(nrecv,atom->nlocal+atom->nghost,buf);
+comm.cpp:        avec->unpack_border(nrecv,atom->nlocal+atom->nghost,buf);
+compute_angle_local.cpp:  if (atom->avec->angles_allow == 0)
+compute_bond_local.cpp:  if (atom->avec->bonds_allow == 0)
+compute_dihedral_local.cpp:  if (atom->avec->dihedrals_allow == 0)
+compute_improper_local.cpp:  if (atom->avec->impropers_allow == 0)
+compute_property_local.cpp:  if (kindflag == BOND && atom->avec->bonds_allow == 0)
+compute_property_local.cpp:  if (kindflag == ANGLE && atom->avec->angles_allow == 0)
+compute_property_local.cpp:  if (kindflag == DIHEDRAL && atom->avec->dihedrals_allow == 0)
+compute_property_local.cpp:  if (kindflag == IMPROPER && atom->avec->impropers_allow == 0)
+create_atoms.cpp:  // NOTE: 31May12, don't think this is needed, avec->create_atom() does it
+create_atoms.cpp:    atom->avec->create_atom(itype,xone);
+create_atoms.cpp:      atom->avec->create_atom(itype,xone);
+create_atoms.cpp:          atom->avec->create_atom(basistype[m],x);
+delete_atoms.cpp:      avec->copy(nlocal-1,i,1);
+delete_bonds.cpp:  if (atom->avec->bonds_allow) {
+delete_bonds.cpp:  if (atom->avec->angles_allow) {
+delete_bonds.cpp:  if (atom->avec->dihedrals_allow) {
+delete_bonds.cpp:  if (atom->avec->impropers_allow) {
+delete_bonds.cpp:    if (atom->avec->bonds_allow) {
+delete_bonds.cpp:    if (atom->avec->angles_allow) {
+delete_bonds.cpp:    if (atom->avec->dihedrals_allow) {
+delete_bonds.cpp:    if (atom->avec->impropers_allow) {
+delete_bonds.cpp:    if (atom->avec->bonds_allow) {
+delete_bonds.cpp:    if (atom->avec->angles_allow) {
+delete_bonds.cpp:    if (atom->avec->dihedrals_allow) {
+delete_bonds.cpp:    if (atom->avec->impropers_allow) {
+delete_bonds.cpp:  if (atom->avec->bonds_allow) {
+delete_bonds.cpp:  if (atom->avec->angles_allow) {
+delete_bonds.cpp:  if (atom->avec->dihedrals_allow) {
+delete_bonds.cpp:  if (atom->avec->impropers_allow) {
+delete_bonds.cpp:    if (atom->avec->bonds_allow) {
+delete_bonds.cpp:    if (atom->avec->angles_allow) {
+delete_bonds.cpp:    if (atom->avec->dihedrals_allow) {
+delete_bonds.cpp:    if (atom->avec->impropers_allow) {
+fix_deposit.cpp:      atom->avec->create_atom(ntype,coord);
+fix_evaporate.cpp:          if (atom->avec->bonds_allow) {
+fix_evaporate.cpp:          if (atom->avec->angles_allow) {
+fix_evaporate.cpp:          if (atom->avec->dihedrals_allow) {
+fix_evaporate.cpp:          if (atom->avec->impropers_allow) {
+fix_evaporate.cpp:      avec->copy(atom->nlocal-1,i,1);
+fix_langevin.cpp:  AtomVecEllipsoid::Bonus *bonus = avec->bonus;
+fix_shake.cpp:  int angles_allow = atom->avec->angles_allow;
+input.cpp:  if (atom->avec->angles_allow == 0)
+input.cpp:  if (atom->avec->angles_allow == 0)
+input.cpp:  if (atom->avec->bonds_allow == 0)
+input.cpp:  if (atom->avec->bonds_allow == 0)
+input.cpp:  if (atom->avec->dihedrals_allow == 0)
+input.cpp:  if (atom->avec->dihedrals_allow == 0)
+input.cpp:  if (atom->avec->impropers_allow == 0)
+input.cpp:  if (atom->avec->impropers_allow == 0)
+irregular.cpp:  atom->avec->clear_bonus();
+irregular.cpp:        sizes[nsendatom] = avec->pack_exchange(i,&buf_send[nsend]);
+irregular.cpp:        avec->copy(nlocal-1,i,1);
+irregular.cpp:  while (m < nrecv) m += avec->unpack_exchange(&buf_recv[m]);
+neighbor.cpp:  if (atom->avec->bonds_allow) {
+neighbor.cpp:  if (atom->avec->angles_allow) {
+neighbor.cpp:  if (atom->avec->dihedrals_allow) {
+neighbor.cpp:  if (atom->avec->impropers_allow) {
+read_data.cpp:  atom->avec->grow(n);
+read_data.cpp:      if (atom->avec->bonds_allow == 0)
+read_data.cpp:      if (atom->avec->angles_allow == 0)
+read_data.cpp:      if (atom->avec->dihedrals_allow == 0)
+read_data.cpp:      if (atom->avec->impropers_allow == 0)
+read_data.cpp:      if (atom->avec->bonds_allow == 0)
+read_data.cpp:      if (atom->avec->angles_allow == 0)
+read_data.cpp:      if (atom->avec->dihedrals_allow == 0)
+read_data.cpp:      if (atom->avec->impropers_allow == 0)
+read_data.cpp:      if (atom->avec->angles_allow == 0)
+read_data.cpp:      if (atom->avec->angles_allow == 0)
+read_data.cpp:      if (atom->avec->dihedrals_allow == 0)
+read_data.cpp:      if (atom->avec->dihedrals_allow == 0)
+read_data.cpp:      if (atom->avec->dihedrals_allow == 0)
+read_data.cpp:      if (atom->avec->dihedrals_allow == 0)
+read_data.cpp:      if (atom->avec->dihedrals_allow == 0)
+read_data.cpp:      if (atom->avec->impropers_allow == 0)
+read_data.cpp:      atom->avec->bonds_allow == 0 && me == 0)
+read_data.cpp:      atom->avec->angles_allow == 0 && me == 0)
+read_data.cpp:      atom->avec->dihedrals_allow == 0 && me == 0)
+read_data.cpp:      atom->avec->impropers_allow == 0 && me == 0)
+read_data.cpp:      if (atom->avec->bonds_allow == 0)
+read_data.cpp:      if (atom->avec->angles_allow == 0)
+read_data.cpp:      if (atom->avec->dihedrals_allow == 0)
+read_data.cpp:      if (atom->avec->impropers_allow == 0)
+read_data.cpp:      if (atom->avec->angles_allow == 0)
+read_data.cpp:      if (atom->avec->angles_allow == 0)
+read_data.cpp:      if (atom->avec->dihedrals_allow == 0)
+read_data.cpp:      if (atom->avec->dihedrals_allow == 0)
+read_data.cpp:      if (atom->avec->dihedrals_allow == 0)
+read_data.cpp:      if (atom->avec->dihedrals_allow == 0)
+read_data.cpp:      if (atom->avec->dihedrals_allow == 0)
+read_data.cpp:      if (atom->avec->impropers_allow == 0)
+read_dump.cpp:    atom->avec->create_atom(itype,one);
+read_dump.cpp:      avec->copy(nlocal-1,i,1);
+read_restart.cpp:  atom->avec->grow(n);
+read_restart.cpp:          m += avec->unpack_restart(&buf[m]);
+read_restart.cpp:      while (m < n) m += avec->unpack_restart(&buf[m]);
+replicate.cpp:  int send_size = atom->avec->size_restart();
+replicate.cpp:  atom->avec->grow(n);
+replicate.cpp:      for (i = 0; i < old->nlocal; i++) n += old_avec->pack_restart(i,&buf[n]);
+replicate.cpp:              m += avec->unpack_restart(&buf[m]);
+replicate.cpp:                if (atom->avec->bonds_allow)
+replicate.cpp:                if (atom->avec->angles_allow)
+replicate.cpp:                if (atom->avec->dihedrals_allow)
+replicate.cpp:                if (atom->avec->impropers_allow)
+set.cpp:      if (atom->avec->bonds_allow == 0)
+set.cpp:      if (atom->avec->angles_allow == 0)
+set.cpp:      if (atom->avec->dihedrals_allow == 0)
+set.cpp:      if (atom->avec->impropers_allow == 0)
+special.cpp:  atom->avec->grow_reset();
+write_restart.cpp:  int send_size = atom->avec->size_restart();
+write_restart.cpp:  for (int i = 0; i < atom->nlocal; i++) n += avec->pack_restart(i,&buf[n]);
+write_restart.cpp:  if (atom->avec->bonds_allow && force->bond) {
+write_restart.cpp:  if (atom->avec->angles_allow && force->angle) {
+write_restart.cpp:  if (atom->avec->dihedrals_allow && force->dihedral) {
+write_restart.cpp:  if (atom->avec->impropers_allow && force->improper) {
