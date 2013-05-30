@@ -313,8 +313,8 @@ void FixSRD::init()
     error->all(FLERR,"Fix srd requires newton pair on");
   if (bigexist && comm->ghost_velocity == 0)
     error->all(FLERR,"Fix srd requires ghost atoms store velocity");
-  if (bigexist && collidestyle == NOSLIP && !atom->torque_flag)
-    error->all(FLERR,"Fix SRD no-slip requires atom attribute torque");
+  if (bigexist && collidestyle == NOSLIP && !atom->torque_flag && exactflag !=SRDLIKE)
+    error->all(FLERR,"Fix SRD no-slip requires atom attribute torque");//jifu
   if (initflag && update->dt != dt_big)
     error->all(FLERR,"Cannot change timestep once fix srd is setup");
 
@@ -692,8 +692,9 @@ void FixSRD::post_force(int vflag)
 
   // zero ghost forces & torques on BIG particles
 
-  double **f = atom->f;
+  double **f = atom->f;  
   double **torque = atom->torque;
+
   int nlocal = atom->nlocal;
   int nall = nlocal + atom->nghost;
   if (bigexist == 0) nall = 0;
@@ -701,9 +702,11 @@ void FixSRD::post_force(int vflag)
   for (i = nlocal; i < nall; i++)
     f[i][0] = f[i][1] = f[i][2] = 0.0;
 
-  if (collidestyle == NOSLIP)
-    for (i = nlocal; i < nall; i++)
-      torque[i][0] = torque[i][1] = torque[i][2] = 0.0;
+  if (exactflag !=SRDLIKE ) {
+      if (collidestyle == NOSLIP)
+      for (i = nlocal; i < nall; i++)
+	torque[i][0] = torque[i][1] = torque[i][2] = 0.0;
+  }
      
   // advect SRD particles
   // assign to search bins if big particles or walls exist
@@ -824,7 +827,7 @@ void FixSRD::post_force(int vflag)
   // detect collision of SRDs with BIG particles or walls
 
   if (bigexist || wallexist) {
-    if (bigexist) big_dynamic();
+    if (bigexist && exactflag != SRDLIKE) big_dynamic();
     if (wallexist) wallfix->wall_params(0);
     if (overlap) collisions_multi();
     else collisions_single();
@@ -1045,7 +1048,7 @@ void FixSRD::reset_velocities()
     vbin[i].vsum[2] = vsum[2];
     vbin[i].n = n;
     vbin[i].mass = mass_sum;//jifu
-    //printf("i %d, mass_sum %g\n",i,mass_sum);//jifu
+    printf("i %d,ibin %d, nbins %d,  nav %d n= %d  mass_sum %g\n",i,ibin,nbins, n_avg_srd, n, mass_sum);//jifu
 
     if (vbin[i].owner) vbin[i].random = random->uniform();
     else vbin[i].random = 0.0;
@@ -1148,7 +1151,7 @@ void FixSRD::reset_velocities()
 
       tbin = vsq/(n-dof_tstat) * tfactor;
       scale = sqrt(temperature_srd/tbin);
-
+      
       vsq = 0.0;
       for (j = binhead[i]; j >= 0; j = binnext[j]) {
         u[0] = (v[j][0] - vave[0]) * scale;
@@ -2654,8 +2657,9 @@ void FixSRD::parameterize()
         length = MAX(length,length3);
         maxbigdiam = MAX(maxbigdiam,length);
         minbigdiam = MIN(minbigdiam,length);
-      } else 
+      } else if ( exactflag != SRDLIKE) {//jifu
         error->one(FLERR,"Big particle in fix srd cannot be point particle");
+      }
     }
 
   double tmp = maxbigdiam;
@@ -3836,14 +3840,15 @@ int FixSRD::pack_reverse_comm(int n, int first, double *buf)
   last = first + n;
 
   if (torqueflag) {
-    for (i = first; i < last; i++) {
-      buf[m++] = flocal[i][0];
-      buf[m++] = flocal[i][1];
-      buf[m++] = flocal[i][2];
-      buf[m++] = tlocal[i][0];
-      buf[m++] = tlocal[i][1];
-      buf[m++] = tlocal[i][2];
-    }
+    if (exactflag != SRDLIKE )//jifu
+      for (i = first; i < last; i++) {
+	buf[m++] = flocal[i][0];
+	buf[m++] = flocal[i][1];
+	buf[m++] = flocal[i][2];
+	buf[m++] = tlocal[i][0];
+	buf[m++] = tlocal[i][1];
+	buf[m++] = tlocal[i][2];
+      }
 
   } else {
     for (i = first; i < last; i++) {
@@ -3865,15 +3870,16 @@ void FixSRD::unpack_reverse_comm(int n, int *list, double *buf)
   m = 0;
 
   if (torqueflag) {
-    for (i = 0; i < n; i++) {
-      j = list[i];
-      flocal[j][0] += buf[m++];
-      flocal[j][1] += buf[m++];
-      flocal[j][2] += buf[m++];
-      tlocal[j][0] += buf[m++];
-      tlocal[j][1] += buf[m++];
-      tlocal[j][2] += buf[m++];
-    }
+    if (exactflag != SRDLIKE )//jifu
+      for (i = 0; i < n; i++) {
+	j = list[i];
+	flocal[j][0] += buf[m++];
+	flocal[j][1] += buf[m++];
+	flocal[j][2] += buf[m++];
+	tlocal[j][0] += buf[m++];
+	tlocal[j][1] += buf[m++];
+	tlocal[j][2] += buf[m++];
+      }
 
   } else {
     for (i = 0; i < n; i++) {
