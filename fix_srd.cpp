@@ -982,10 +982,13 @@ void FixSRD::reset_velocities()
   // for each bin I have particles contributing to:
   // compute summed v of particles in that bin
   // if I own the bin, set its random value, else set to 0.0
-  
+
+  // defined for virtual particle filling
+  n_avg_srd = static_cast<int> (srd_per_cell);
+
   for (i = 0; i < nbins; i++) {
     n = 0;
-    mass_sum = 0;
+    mass_sum = 0.0;
     vsum[0] = vsum[1] = vsum[2] = 0.0;
     if (exactflag == SRDLIKE){//jifu 
       for (j = binhead[i]; j >= 0; j = binnext[j]) {
@@ -1013,42 +1016,52 @@ void FixSRD::reset_velocities()
     //printf("total srd+big: %d\n",ix);//jifu check the total srd number, it is correct
     // printf("bin %d, %d ptls, mass_sum %g\n",i,n,mass_sum);//jifu
     // virtual particles for BC
+    /*ibin=binsrd[binhead[i]];
+    printf("%d bin\n",i);//jifu
+     for(j = binhead[i]; j >= 0; j = binnext[j]) {
+       if(ibin!=binsrd[j]) printf("%d bin,binhead %d, j %d\n",i,binhead[i],j);//jifu
+       }*/
     
-    for(j = binhead[i]; j >= 0; j = binnext[j]) {
-	if (mask[j] & groupbit) {
-	  ibin=binsrd[j];// keep in mind: ibin != i
-	  nbig = nbinbig[ibin];
-	  for ( int jj = 0; jj < nbig; jj++) {
-	    k = binbig[ibin][jj];
-	    big = &biglist[k];
-	    m = big->index;
-	    n_avg_srd = static_cast<int> (srd_per_cell);
-	    bigtype = big->type;
-	    if ( (bigtype == WALL) && ( n < n_avg_srd) ){
-	      if (exactflag == SRDLIKE) {
-		vsum[0] += (n_avg_srd - n)* v_bc[m][0]*mass_srd;
-		vsum[1] += (n_avg_srd - n)* v_bc[m][1]*mass_srd;
-		vsum[2] += (n_avg_srd - n)* v_bc[m][2]*mass_srd;
-		n = n_avg_srd;
-		mass_sum += (n_avg_srd - n)*mass_srd;//jifu added
-	      } else {
-		vsum[0] += (n_avg_srd - n)* v_bc[m][0];
-		vsum[1] += (n_avg_srd - n)* v_bc[m][1];
-		vsum[2] += (n_avg_srd - n)* v_bc[m][2];
-		n = n_avg_srd;
-	      }	    
-	    }
-	  }
-	  break;//just need to find one SRD particle
-	} 	    
-    }//eol: vp, jifu
-    
+    if(binhead[i]>=0){
+      
+      j=binhead[i];         
+      ix = static_cast<int> ((x[j][0]-xblo2)*bininv2x);
+      iy = static_cast<int> ((x[j][1]-yblo2)*bininv2y);
+      iz = static_cast<int> ((x[j][2]-zblo2)*bininv2z);
+      ibin = iz*nbin2y*nbin2x + iy*nbin2x + ix;
+
+      nbig = nbinbig[ibin];
+
+      for ( int jj = 0; jj < nbig; jj++) {
+	k = binbig[ibin][jj];
+	big = &biglist[k];
+	m = big->index;
+	//n_avg_srd = static_cast<int> (srd_per_cell);
+	bigtype = big->type;
+	if ( (bigtype == WALL) && ( n < n_avg_srd) ){
+	  if (exactflag == SRDLIKE) {
+	    vsum[0] += (n_avg_srd - n)* v_bc[m][0]*mass_srd;
+	    vsum[1] += (n_avg_srd - n)* v_bc[m][1]*mass_srd;
+	    vsum[2] += (n_avg_srd - n)* v_bc[m][2]*mass_srd;
+	    mass_sum += (n_avg_srd - n)*mass_srd;//jifu added
+	    n = n_avg_srd;	    
+	    } else {
+	    vsum[0] += (n_avg_srd - n)* v_bc[m][0];
+	    vsum[1] += (n_avg_srd - n)* v_bc[m][1];
+	    vsum[2] += (n_avg_srd - n)* v_bc[m][2];
+	    n = n_avg_srd;
+	   }	    
+	}
+      }	  
+    }// eol vp jifu
+        
     vbin[i].vsum[0] = vsum[0];
     vbin[i].vsum[1] = vsum[1];
     vbin[i].vsum[2] = vsum[2];
     vbin[i].n = n;
     vbin[i].mass = mass_sum;//jifu
-    printf("i %d,ibin %d, nbins %d,  nav %d n= %d  mass_sum %g\n",i,ibin,nbins, n_avg_srd, n, mass_sum);//jifu
+    
+    //printf("i %d nav %d n= %d typemass %g, mass srd %g, mass_sum %g\n",i, n_avg_srd, n, mass[type[0]],mass_srd, mass_sum);//jifu
 
     if (vbin[i].owner) vbin[i].random = random->uniform();
     else vbin[i].random = 0.0;
@@ -1094,18 +1107,17 @@ void FixSRD::reset_velocities()
   for (i = 0; i < nbins; i++) {
     n = vbin[i].n;
     mass_sum = vbin[i].mass;//jifu
-    if (n == 0) continue;
-    if (mass_sum == 0) continue;//jifu
+    if (n == 0 || mass_sum == 0.0) continue;
     vave = vbin[i].vsum;
-    if (exactflag == SRDLIKE) {
+      if (exactflag == SRDLIKE) {
       vave[0] /= mass_sum;
       vave[1] /= mass_sum;
       vave[2] /= mass_sum;
-    } else {     
+      } else {     
       vave[0] /= n;
       vave[1] /= n;
       vave[2] /= n;
-    }
+      }//jifu
 
     irandom = static_cast<int> (6.0*vbin[i].random);
     sign = irandom % 2;
