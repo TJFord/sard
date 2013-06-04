@@ -1184,7 +1184,7 @@ void FixSRD::reset_velocities()
   }
   
   srd_bin_temp *= tfactor;
-
+  //-------jifu commented
   // rescale any too-large velocities
 
   for (i = 0; i < nlocal; i++)
@@ -1194,7 +1194,7 @@ void FixSRD::reset_velocities()
         nrescale++;
         MathExtra::scale3(vmax/sqrt(vsq),v[i]);
       }
-    }
+    }//--------*/
 }
 
 /* ----------------------------------------------------------------------
@@ -1434,15 +1434,17 @@ void FixSRD::collisions_single()
 	  }//eol jifu
 	  
           if (dimension == 2) vsnew[2] = 0.0;
-
+	  
+	  /*-----commented out by jifu ----------*/
           // check on rescaling of vsnew
-
+	  //
           double vsq = vsnew[0]*vsnew[0] + vsnew[1]*vsnew[1] +
             vsnew[2]*vsnew[2];
           if (vsq > vmaxsq) {
             nrescale++;
             MathExtra::scale3(vmax/sqrt(vsq),vsnew);
-          }
+	    }//
+	  /*-----eoc jifu --------------*/
 
           // update BIG particle and WALL and SRD
           // BIG particle is not torqued if sphere and SLIP collision
@@ -2489,7 +2491,7 @@ void FixSRD::noslip(double *vs, double *vb, double *xb, Big *big, int iwall,
   if (big->type == WALL) {
     int dim = wallwhich[iwall] / 2;
     vsnew[dim] += vwall[iwall];
-    //printf("the %d velocity is: %f\n",iwall,vwall[iwall]);
+    //printf("the %d velocity is: %g,%g,%g\n",iwall,v_bc[iwall][0],v_bc[iwall][1],v_bc[iwall][2]);//jifu
     //switch (wallwhich[iwall]){
     //case XLO:
       vsnew[0] += v_bc[iwall][0];
@@ -2740,7 +2742,8 @@ void FixSRD::parameterize()
   // dmax = maximum distance an SRD can move = 4*lamda = vmax * dt_srd
 
   sigma = lamda/dt_srd;
-  dmax = 4.0*lamda;
+  //dmax = 4.0*lamda;
+  dmax = 1000.0*lamda;//jifu changed
   vmax = dmax/dt_srd;
   vmaxsq = vmax*vmax;
 
