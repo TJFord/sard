@@ -6,12 +6,12 @@ SHELL = /bin/sh
 # compiler/linker settings
 # specify flags and libraries needed for your compiler
 
-CC =		icc
+CC =		mpiCC
 CCFLAGS =	-O
 SHFLAGS =	-fPIC
 DEPFLAGS =	-M
 
-LINK =		icc
+LINK =		mpiCC
 LINKFLAGS =	-O
 LIB =           -lstdc++
 SIZE =		size
@@ -28,7 +28,8 @@ SHLIBFLAGS =	-shared
 # LAMMPS ifdef settings, OPTIONAL
 # see possible settings in doc/Section_start.html#2_2 (step 4)
 
-LMP_INC =	-DLAMMPS_GZIP -DLAMMPS_JPEG
+#LMP_INC =	-DLAMMPS_GZIP -DLAMMPS_JPEG
+LMP_INC =	-DLAMMPS_GZIP 
 
 # MPI library, REQUIRED
 # see discussion in doc/Section_start.html#2_2 (step 5)
@@ -37,9 +38,10 @@ LMP_INC =	-DLAMMPS_GZIP -DLAMMPS_JPEG
 # PATH = path for MPI library
 # LIB = name of MPI library
 
-MPI_INC =       -DMPICH_SKIP_MPICXX 
-MPI_PATH = 
-MPI_LIB =	-lmpich -lmpl -lpthread
+#MPI_INC =       -DMPICH_SKIP_MPICXX 
+#MPI_INC =       /usr/lib/openmpi/include
+#MPI_PATH =      /usr/lib/openmpi/lib
+#MPI_LIB =	-lmpich -lmpl -lpthread
 
 # FFT library, OPTIONAL
 # see discussion in doc/Section_start.html#2_2 (step 6)
@@ -48,9 +50,13 @@ MPI_LIB =	-lmpich -lmpl -lpthread
 # PATH = path for FFT library
 # LIB = name of FFT library
 
-FFT_INC =       -DFFT_FFTW
+#FFT_INC =       -DFFT_FFTW
+#FFT_PATH = 
+#FFT_LIB =	-lfftw
+
+FFT_INC =
 FFT_PATH = 
-FFT_LIB =	-lfftw
+FFT_LIB =
 
 # JPEG library, OPTIONAL
 # see discussion in doc/Section_start.html#2_2 (step 7)
@@ -61,7 +67,8 @@ FFT_LIB =	-lfftw
 
 JPG_INC =       
 JPG_PATH = 	
-JPG_LIB =	-ljpeg
+#JPG_LIB =	-ljpeg
+JPG_LIB =
 
 # ---------------------------------------------------------------------
 # build rules and dependencies

@@ -56,19 +56,20 @@ modify.o: modify.cpp /usr/include/stdio.h /usr/include/features.h \
  fix_aveforce.h fix_ave_histo.h fix_ave_spatial.h fix_ave_time.h \
  fix_balance.h fix_box_relax.h fix_deform.h fix_deposit.h fix_drag.h \
  fix_dt_reset.h fix_efield.h fix_enforce2d.h fix_evaporate.h \
- fix_external.h fix_gravity.h fix_heat.h fix_indent.h fix_langevin.h \
- fix_lineforce.h fix_minimize.h fix_momentum.h fix_move.h fix_nph.h \
- fix_nh.h fix_nph_sphere.h fix_nh_sphere.h fix_npt.h fix_npt_sphere.h \
- fix_nve.h fix_nve_limit.h fix_nve_noforce.h fix_nve_sphere.h fix_nvt.h \
- fix_nvt_sllod.h fix_nvt_sphere.h fix_orient_fcc.h fix_planeforce.h \
- fix_press_berendsen.h fix_print.h fix_qeq_comb.h fix_read_restart.h \
- fix_recenter.h fix_respa.h fix_restrain.h fix_setforce.h fix_shake.h \
- fix_shear_history.h fix_spring.h fix_spring_rg.h fix_spring_self.h \
- fix_srd.h fix_store_force.h fix_store_state.h fix_temp_berendsen.h \
+ fix_external.h fix_freeze.h fix_gravity.h fix_heat.h fix_indent.h \
+ fix_langevin.h fix_lineforce.h fix_minimize.h fix_momentum.h fix_move.h \
+ fix_nph.h fix_nh.h fix_nph_sphere.h fix_nh_sphere.h fix_npt.h \
+ fix_npt_sphere.h fix_nve.h fix_nve_limit.h fix_nve_noforce.h \
+ fix_nve_sphere.h fix_nvt.h fix_nvt_sllod.h fix_nvt_sphere.h \
+ fix_orient_fcc.h fix_planeforce.h fix_pour.h fix_press_berendsen.h \
+ fix_print.h fix_qeq_comb.h fix_read_restart.h fix_recenter.h fix_respa.h \
+ fix_restrain.h fix_setforce.h fix_shake.h fix_shear_history.h \
+ fix_spring.h fix_spring_rg.h fix_spring_self.h fix_srd.h \
+ fix_store_force.h fix_store_state.h fix_temp_berendsen.h \
  fix_temp_rescale.h fix_thermal_conductivity.h fix_tmd.h fix_ttm.h \
- fix_viscosity.h fix_viscous.h fix_wall_harmonic.h fix_wall.h \
- fix_wall_lj126.h fix_wall_lj93.h fix_wall_reflect.h fix_wall_region.h \
- fix_wall_srd.h atom.h comm.h group.h update.h domain.h \
+ fix_viscosity.h fix_viscous.h fix_wall_gran.h fix_wall_harmonic.h \
+ fix_wall.h fix_wall_lj126.h fix_wall_lj93.h fix_wall_reflect.h \
+ fix_wall_region.h fix_wall_srd.h atom.h comm.h group.h update.h domain.h \
  /usr/include/math.h /usr/include/i386-linux-gnu/bits/huge_val.h \
  /usr/include/i386-linux-gnu/bits/huge_valf.h \
  /usr/include/i386-linux-gnu/bits/huge_vall.h \

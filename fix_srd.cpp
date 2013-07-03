@@ -77,7 +77,7 @@ FixSRD::FixSRD(LAMMPS *lmp, int narg, char **arg) : Fix(lmp, narg, arg)
 
   restart_pbc = 1;
   vector_flag = 1;
-  size_vector = 12;
+  size_vector = 13;//12; 12->13, jifu added
   global_freq = 1;
   extvector = 0;
 
@@ -262,6 +262,15 @@ FixSRD::FixSRD(LAMMPS *lmp, int narg, char **arg) : Fix(lmp, narg, arg)
   if (collidestyle == SLIP) comm_reverse = 3;
   else comm_reverse = 6;
   force_reneighbor = 1;
+  
+  // bond_tag for big particle: jifu
+  /*
+  if (bigexist) {
+    bigint mbig = 0;
+    mbig = group->count(biggroup);
+    memory->create(bond_tag,mbig,"fix/srd:bond_tag");
+    }*/
+  
 }
 
 /* ---------------------------------------------------------------------- */
@@ -291,6 +300,8 @@ FixSRD::~FixSRD()
   memory->destroy(binsrd);
   memory->destroy(stencil);
   memory->sfree(biglist);
+
+  //memory->destroy(bond_tag); //jifu
 }
 
 /* ---------------------------------------------------------------------- */
@@ -719,6 +730,14 @@ void FixSRD::post_force(int vflag)
   double *rmass=atom->rmass;//set type mass,set.cpp
   double *mass=atom->mass;//mass 1 1
   int *type=atom->type;
+
+  // jifu added for bonds counting
+  bigint ntimestep;
+
+  ntimestep = update->ntimestep;
+  if (ntimestep == 0) nbond=0;
+  // end of jifu bonds counting
+  
   
   if (bigexist || wallexist) {
     if (rmass){ //jifu added
@@ -727,15 +746,15 @@ void FixSRD::post_force(int vflag)
 	  //jifu added gravity effect to velocity
 	  //fprintf(screen,"v = %g %g %g %d %d\n",v[i][0],v[i][1],v[i][2],i,nlocal);//jifu
 	  //if (i==66) printf("i=%d, before v %f %f %f\n",i,v[i][0],v[i][1],v[i][2]);//
-	  v[i][0] += 0.5*dt_big*f[i][0]/rmass[i]*force->ftm2v;
+	  /*v[i][0] += 0.5*dt_big*f[i][0]/rmass[i]*force->ftm2v;
 	  v[i][1] += 0.5*dt_big*f[i][1]/rmass[i]*force->ftm2v;
-	  v[i][2] += 0.5*dt_big*f[i][2]/rmass[i]*force->ftm2v;
+	  v[i][2] += 0.5*dt_big*f[i][2]/rmass[i]*force->ftm2v;*/
 	  x[i][0] += dt_big*v[i][0];
 	  x[i][1] += dt_big*v[i][1];
 	  x[i][2] += dt_big*v[i][2];
-	  v[i][0] += 0.5*dt_big*f[i][0]/rmass[i]*force->ftm2v;
+	  /* v[i][0] += 0.5*dt_big*f[i][0]/rmass[i]*force->ftm2v;
 	  v[i][1] += 0.5*dt_big*f[i][1]/rmass[i]*force->ftm2v;
-	  v[i][2] += 0.5*dt_big*f[i][2]/rmass[i]*force->ftm2v;
+	  v[i][2] += 0.5*dt_big*f[i][2]/rmass[i]*force->ftm2v;*/
 	  
 	  //if (atom->f[i][0] !=0) printf("the %d atom components of force, mass, %f, %f, %f\n",i,atom->f[i][0],rmass[i],force->ftm2v);
 
@@ -1310,7 +1329,7 @@ void FixSRD::vbin_unpack(double *buf, BinAve *vbin, int n, int *list)
 
 void FixSRD::collisions_single()
 {
-  int i,j,k,m,type,nbig,ibin,ibounce,inside,collide_flag,lineside;
+  int i,j,k,m,type,nbig,ibin,ibounce,inside,collide_flag,lineside; 
   double dt,t_remain;
   double norm[3],xscoll[3],xbcoll[3],vsnew[3];
   Big *big;
@@ -1332,6 +1351,7 @@ void FixSRD::collisions_single()
   int nlocal = atom->nlocal;
 
    for (i = 0; i < nlocal; i++) {
+     // if (mask[i] & biggroupbit) big_bond(i);//jifu check big bonding; 
     if (!(mask[i] & groupbit)) continue;
 
      ibin = binsrd[i];
@@ -1353,43 +1373,47 @@ void FixSRD::collisions_single()
         j = big->index;
         type = big->type;
 	if (exactflag != SRDLIKE){//jifu
-	  if (type == SPHERE) inside = inside_sphere(x[i],x[j],big);
-	  else if (type == ELLIPSOID) inside = inside_ellipsoid(x[i],x[j],big);
+	  if (type == SPHERE) { 
+	    inside = inside_sphere(x[i],x[j],big);
+	    big_bond(big);}//jifu
+	  else if (type == ELLIPSOID) { 
+	    inside = inside_ellipsoid(x[i],x[j],big);
+	    big_bond(big);} //jifu
 	  else inside = inside_wall(x[i],j);
 	}else {
 	  if (type == WALL) {
 	    inside=inside_wall(x[i],j);
-	  }
+	  } else big_bond(big);//jifu
 	}
-	
-        if (inside) {
-          if (exactflag == EXACT) { //jifu changed
-            if (type == SPHERE)
-              t_remain = collision_sphere_exact(x[i],x[j],v[i],v[j],big,
-                                                xscoll,xbcoll,norm);
-            else if (type == ELLIPSOID)
-              t_remain = collision_ellipsoid_exact(x[i],x[j],v[i],v[j],big,
-                                                   xscoll,xbcoll,norm);
-            else
-              t_remain = collision_wall_exact(x[i],j,v[i],xscoll,xbcoll,norm);
 
-          } else if (exactflag == INEXACT) {//jifu changed
-            t_remain = 0.5*dt;
-            if (type == SPHERE)
-              collision_sphere_inexact(x[i],x[j],big,xscoll,xbcoll,norm);
-            else if (type == ELLIPSOID)
-              collision_ellipsoid_inexact(x[i],x[j],big,xscoll,xbcoll,norm);
-            else
-              collision_wall_inexact(x[i],j,xscoll,xbcoll,norm);
-          } else {
+	if (inside) {
+	  if (exactflag == EXACT) { //jifu changed
+	    if (type == SPHERE)
+	      t_remain = collision_sphere_exact(x[i],x[j],v[i],v[j],big,
+						xscoll,xbcoll,norm);
+	    else if (type == ELLIPSOID)
+	      t_remain = collision_ellipsoid_exact(x[i],x[j],v[i],v[j],big,
+						   xscoll,xbcoll,norm);
+	    else
+	      t_remain = collision_wall_exact(x[i],j,v[i],xscoll,xbcoll,norm);
+
+	  } else if (exactflag == INEXACT) {//jifu changed
+	    t_remain = 0.5*dt;
+	    if (type == SPHERE)
+	      collision_sphere_inexact(x[i],x[j],big,xscoll,xbcoll,norm);
+	    else if (type == ELLIPSOID)
+	      collision_ellipsoid_inexact(x[i],x[j],big,xscoll,xbcoll,norm);
+	    else
+	      collision_wall_inexact(x[i],j,xscoll,xbcoll,norm);
+	  } else {
 	    t_remain = 0.5*dt;
 	    if (type == WALL)  collision_wall_inexact(x[i],j,xscoll,xbcoll,norm);
-	      } //jifu
+	  } //jifu
 	  
 #ifdef SRD_DEBUG
-          if (update->ntimestep == SRD_DEBUG_TIMESTEP &&
-              atom->tag[i] == SRD_DEBUG_ATOMID)
-            print_collision(i,j,ibounce,t_remain,dt,xscoll,xbcoll,norm,type);
+	  if (update->ntimestep == SRD_DEBUG_TIMESTEP &&
+	      atom->tag[i] == SRD_DEBUG_ATOMID)
+	    print_collision(i,j,ibounce,t_remain,dt,xscoll,xbcoll,norm,type);
 #endif
 	  if (exactflag != SRDLIKE) {//jifu
 	    if (t_remain > dt) {
@@ -1433,21 +1457,21 @@ void FixSRD::collisions_single()
 	    }
 	  }//eol jifu
 	  
-          if (dimension == 2) vsnew[2] = 0.0;
+	  if (dimension == 2) vsnew[2] = 0.0;
 	  
 	  /*-----commented out by jifu ----------*/
-          // check on rescaling of vsnew
+	  // check on rescaling of vsnew
 	  //
-          double vsq = vsnew[0]*vsnew[0] + vsnew[1]*vsnew[1] +
-            vsnew[2]*vsnew[2];
-          if (vsq > vmaxsq) {
-            nrescale++;
-            MathExtra::scale3(vmax/sqrt(vsq),vsnew);
-	    }//
+	  double vsq = vsnew[0]*vsnew[0] + vsnew[1]*vsnew[1] +
+	    vsnew[2]*vsnew[2];
+	  if (vsq > vmaxsq) {
+	    nrescale++;
+	    MathExtra::scale3(vmax/sqrt(vsq),vsnew);
+	  }//
 	  /*-----eoc jifu --------------*/
 
-          // update BIG particle and WALL and SRD
-          // BIG particle is not torqued if sphere and SLIP collision
+	  // update BIG particle and WALL and SRD
+	  // BIG particle is not torqued if sphere and SLIP collision
 	  if (exactflag != SRDLIKE) {//jifu
 	    if (collidestyle == SLIP && type == SPHERE)
 	      force_torque(v[i],vsnew,xscoll,xbcoll,f[j],NULL);
@@ -1471,8 +1495,14 @@ void FixSRD::collisions_single()
 	    }
 	  }//eol jifu
 	  
-          break;
-        }
+	  break;
+	}
+
+	if (big->bonded ==1) {
+	  f[j][0]=f[j][1]=f[j][2]=0.0;
+	  torque[j][0]=torque[j][1]=torque[j][2]=0.0; 
+	  v[j][0]=v[j][1]=v[j][2]=0.0;
+	}
       }
     }
     
@@ -3017,6 +3047,7 @@ void FixSRD::big_static()
       biglist[k].radius = rad;
       biglist[k].radsq = rad*rad;
       biglist[k].cutbinsq = (rad+skinhalf) * (rad+skinhalf);
+      //biglist[k].bonded = 0;//jifu 
 
     // ellipsoid
     // set abc radsqinv and cutoff based on max radius
@@ -3090,8 +3121,11 @@ void FixSRD::big_dynamic()
   int *line = atom->line;
   int *tri = atom->tri;
 
+  //nbond=0;//jifu
   for (int k = 0; k < nbig; k++) {
     i = biglist[k].index;
+
+    //if (biglist[k].bonded == 1 ) nbond++;//jifu
 
     // sphere
     // set omega from atom->omega directly
@@ -3927,15 +3961,18 @@ double FixSRD::compute_vector(int n)
     stats[9] = bouncemaxnum;
     stats[10] = bouncemax;
     stats[11] = reneighcount;
-
+    stats[12] = nbond;//jifu
+    
     MPI_Allreduce(stats,stats_all,10,MPI_DOUBLE,MPI_SUM,world);
     MPI_Allreduce(&stats[10],&stats_all[10],1,MPI_DOUBLE,MPI_MAX,world);
+    MPI_Allreduce(&stats[12],&stats_all[12],1,MPI_DOUBLE,MPI_SUM,world);//jifu
+    
     if (stats_all[7] != 0.0) stats_all[8] /= stats_all[7];
     stats_all[6] /= nprocs;
 
     stats_flag = 1;
   }
-
+  
   return stats_all[n];
 }
 
@@ -4180,4 +4217,48 @@ void FixSRD::print_collision(int i, int j, int ibounce,
     printf("  separation at coll  = %g\n",rcoll);
     printf("  separation at end   = %g\n",rend);
   }
+}
+
+/* ---------------------------------------------------------------------- 
+big_bond(int): check if the big particle is within the range of binding
+toward any binding wall
+--------------------------------------------------------------*/
+void FixSRD::big_bond(Big *big)
+{
+  double **f = atom->f;
+  double **x = atom->x;
+  double **torque = atom->torque;
+  int i=big->index;
+  double rad=big->radius;
+  int bonded =0;
+
+  
+  if (big->bonded != 1){
+    for (int j=0;j<nwall;j++)
+      {
+	//	printf("nwall %d, %d\n",j,nwall);//jifu
+	//if (i==8) printf("status %d\n",big->bonded);//jifu
+	bonded = bond_wall(x[i],j,rad);
+	if (bonded) {
+	  //printf("nbond %d, %d,%d\n",i,nbond,j);//jifu
+	  nbond++;
+	  big->bonded = 1;
+	  //bonded=0;
+	  //break;
+	}
+      }
+  }
+}
+
+/* ---------------------------------------------------------------------- 
+bond_wall(double *,int): calculate the distance between big and the wall
+--------------------------------------------------------------*/
+int FixSRD::bond_wall(double *xs, int iwall, double radius)
+{
+  int dim = wallwhich[iwall] / 2;
+  int side = wallwhich[iwall] % 2;
+
+  if (side == 0 && xs[dim] < xwall[iwall]+radius) return 1;
+  if (side && xs[dim] > xwall[iwall]-radius) return 1;
+  return 0;
 }

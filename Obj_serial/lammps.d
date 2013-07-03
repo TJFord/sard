@@ -69,18 +69,19 @@ lammps.o: lammps.cpp ../STUBS/mpi.h /usr/include/stdlib.h \
  fix.h fix_addforce.h fix_ave_atom.h fix_ave_correlate.h fix_aveforce.h \
  fix_ave_histo.h fix_ave_spatial.h fix_ave_time.h fix_balance.h \
  fix_box_relax.h fix_deform.h fix_deposit.h fix_drag.h fix_dt_reset.h \
- fix_efield.h fix_enforce2d.h fix_evaporate.h fix_external.h \
+ fix_efield.h fix_enforce2d.h fix_evaporate.h fix_external.h fix_freeze.h \
  fix_gravity.h fix_heat.h fix_indent.h fix_langevin.h fix_lineforce.h \
  fix_minimize.h fix_momentum.h fix_move.h fix_nph.h fix_nh.h \
  fix_nph_sphere.h fix_nh_sphere.h fix_npt.h fix_npt_sphere.h fix_nve.h \
  fix_nve_limit.h fix_nve_noforce.h fix_nve_sphere.h fix_nvt.h \
  fix_nvt_sllod.h fix_nvt_sphere.h fix_orient_fcc.h fix_planeforce.h \
- fix_press_berendsen.h fix_print.h fix_qeq_comb.h fix_read_restart.h \
- fix_recenter.h fix_respa.h fix_restrain.h fix_setforce.h fix_shake.h \
- fix_shear_history.h fix_spring.h fix_spring_rg.h fix_spring_self.h \
- fix_srd.h fix_store_force.h fix_store_state.h fix_temp_berendsen.h \
- fix_temp_rescale.h fix_thermal_conductivity.h fix_tmd.h fix_ttm.h \
- fix_viscosity.h fix_viscous.h fix_wall_harmonic.h fix_wall.h \
+ fix_pour.h fix_press_berendsen.h fix_print.h fix_qeq_comb.h \
+ fix_read_restart.h fix_recenter.h fix_respa.h fix_restrain.h \
+ fix_setforce.h fix_shake.h fix_shear_history.h fix_spring.h \
+ fix_spring_rg.h fix_spring_self.h fix_srd.h fix_store_force.h \
+ fix_store_state.h fix_temp_berendsen.h fix_temp_rescale.h \
+ fix_thermal_conductivity.h fix_tmd.h fix_ttm.h fix_viscosity.h \
+ fix_viscous.h fix_wall_gran.h fix_wall_harmonic.h fix_wall.h \
  fix_wall_lj126.h fix_wall_lj93.h fix_wall_reflect.h fix_wall_region.h \
  fix_wall_srd.h style_improper.h improper_cvff.h improper.h \
  improper_harmonic.h improper_hybrid.h improper_umbrella.h \
@@ -100,7 +101,8 @@ lammps.o: lammps.cpp ../STUBS/mpi.h /usr/include/stdlib.h \
  pair_born.h pair_buck_coul_cut.h pair_buck_coul_long.h pair_buck.h \
  pair_comb.h pair_coul_cut.h pair_coul_debye.h pair_coul_long.h \
  pair_coul_wolf.h pair_dpd.h pair_dpd_tstat.h pair_eam_alloy.h pair_eam.h \
- pair_eam_fs.h pair_eim.h pair_gauss.h pair_hbond_dreiding_lj.h \
+ pair_eam_fs.h pair_eim.h pair_gauss.h pair_gran_hertz_history.h \
+ pair_gran_hooke_history.h pair_gran_hooke.h pair_hbond_dreiding_lj.h \
  pair_hbond_dreiding_morse.h pair_hybrid.h pair_hybrid_overlay.h \
  pair_lcbop.h pair_lj96_cut.h pair_lj_charmm_coul_charmm.h \
  pair_lj_charmm_coul_charmm_implicit.h pair_lj_charmm_coul_long.h \

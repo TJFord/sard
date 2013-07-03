@@ -86,8 +86,13 @@ class FixSRD : public Fix {
   int stats_flag;
   int srd_bin_count;
   double srd_bin_temp;
-  double stats[12],stats_all[12];
+  // double stats[12],stats_all[12];  
+  //---jifu added for counting binding big particles
+  int nbond; //*bond_tag;
+  double stats[13],stats_all[13]; //jifu extended  
 
+
+  
   double **flocal;       // local ptrs to atom force and torque
   double **tlocal;
 
@@ -96,6 +101,7 @@ class FixSRD : public Fix {
   struct Big {
     int index;                 // local index of particle/wall
     int type;                  // SPHERE or ELLIPSOID or LINE or TRI or WALL
+    int bonded;                // Jifu: bonded or not
     double radius,radsq;       // radius of sphere
     double aradsqinv;          // 3 ellipsoid radii
     double bradsqinv;
@@ -198,6 +204,7 @@ class FixSRD : public Fix {
   int inside_line(double *, double *, double *, double *, Big *, double);
   int inside_tri(double *, double *, double *, double *, Big *, double);
   int inside_wall(double *, int);
+  int bond_wall(double *, int, double);//jifu big bonded to given wall
 
   double collision_sphere_exact(double *, double *, double *, double *,
                                 Big *, double *, double *, double *);
@@ -235,6 +242,8 @@ class FixSRD : public Fix {
   void setup_search_stencil();
   void big_static();
   void big_dynamic();
+  // jifu check big particle binding
+  void big_bond(Big *);//eol jifu
 
   double point_bin_distance(double *, int, int, int);
   double bin_bin_distance(int, int, int);

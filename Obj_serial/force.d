@@ -58,7 +58,8 @@ force.o: force.cpp /usr/include/stdlib.h /usr/include/features.h \
  pair_born.h pair_buck_coul_cut.h pair_buck_coul_long.h pair_buck.h \
  pair_comb.h pair_coul_cut.h pair_coul_debye.h pair_coul_long.h \
  pair_coul_wolf.h pair_dpd.h pair_dpd_tstat.h pair_eam_alloy.h pair_eam.h \
- pair_eam_fs.h pair_eim.h pair_gauss.h pair_hbond_dreiding_lj.h \
+ pair_eam_fs.h pair_eim.h pair_gauss.h pair_gran_hertz_history.h \
+ pair_gran_hooke_history.h pair_gran_hooke.h pair_hbond_dreiding_lj.h \
  pair_hbond_dreiding_morse.h pair_hybrid.h pair_hybrid_overlay.h \
  pair_lcbop.h pair_lj96_cut.h pair_lj_charmm_coul_charmm.h \
  pair_lj_charmm_coul_charmm_implicit.h pair_lj_charmm_coul_long.h \
