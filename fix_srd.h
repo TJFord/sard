@@ -98,7 +98,7 @@ class FixSRD : public Fix {
 
   // info to store for each owned and ghost big particle and wall
 
-  struct Big {
+  struct Big { 
     int index;                 // local index of particle/wall
     int type;                  // SPHERE or ELLIPSOID or LINE or TRI or WALL
     int bonded;                // Jifu: bonded or not
@@ -113,6 +113,7 @@ class FixSRD : public Fix {
     double ex[3],ey[3],ez[3];  // current orientation vecs for ellipsoid/tri
     double norm[3];            // current unit normal of tri in space-frame
     double theta;              // current orientation of line
+    //Big ():bonded(0) {}; //jifu
   };
 
   Big *biglist;           // list of info for each owned & ghost big and wall

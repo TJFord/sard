@@ -270,7 +270,6 @@ FixSRD::FixSRD(LAMMPS *lmp, int narg, char **arg) : Fix(lmp, narg, arg)
     mbig = group->count(biggroup);
     memory->create(bond_tag,mbig,"fix/srd:bond_tag");
     }*/
-  
 }
 
 /* ---------------------------------------------------------------------- */
@@ -466,7 +465,7 @@ void FixSRD::pre_neighbor()
     memory->destroy(binsrd);
     memory->destroy(binnext);
     memory->create(binsrd,nmax,"fix/srd:binsrd");
-    memory->create(binnext,nmax,"fix/srd:binnext");
+    memory->create(binnext,nmax,"fix/srd:binnext");    
   }
   //printf("natoms "BIGINT_FORMAT" nmax %d\n",atom->natoms, atom->nmax);//jifu
   // setup and grow BIG info list if necessary
@@ -484,7 +483,7 @@ void FixSRD::pre_neighbor()
           if (mask[i] & biggroupbit) nbig++;
       }
     } else nbig = 0;
-
+    
     int ninfo = nbig;
     if (wallexist) ninfo += nwall;
 
@@ -1375,7 +1374,11 @@ void FixSRD::collisions_single()
 	if (exactflag != SRDLIKE){//jifu
 	  if (type == SPHERE) { 
 	    inside = inside_sphere(x[i],x[j],big);
-	    big_bond(big);}//jifu
+	    int a=biglist[k].bonded;
+	    //printf("before %d\n",biglist[k].bonded);
+	    big_bond(big);
+	    int b=biglist[k].bonded;
+	    if (a !=b)  printf("before %d, after %d\n",a,b);}//jifu
 	  else if (type == ELLIPSOID) { 
 	    inside = inside_ellipsoid(x[i],x[j],big);
 	    big_bond(big);} //jifu
@@ -3029,15 +3032,19 @@ void FixSRD::big_static()
   if (avec_tri) tbonus = avec_tri->bonus;
   double *radius = atom->radius;
   int *ellipsoid = atom->ellipsoid;
-  int *line = atom->line;
+  int *line = atom->line; 
   int *tri = atom->tri;
   int *type = atom->type;
 
   double skinhalf = 0.5 * neighbor->skin;
 
+  nbond = 0; //jifu
   for (int k = 0; k < nbig; k++) {
     i = biglist[k].index;
 
+    if (biglist[k].bonded == 1 && i <= atom->nlocal) {nbond++;}//jifu
+    //if (nbond != 0) printf("nbond %d\n",nbond);//jifu
+    //
     // sphere
     // set radius and radsq and cutoff based on radius
 
@@ -3121,12 +3128,12 @@ void FixSRD::big_dynamic()
   int *line = atom->line;
   int *tri = atom->tri;
 
-  //nbond=0;//jifu
+  //nbond = 0; //jifu
   for (int k = 0; k < nbig; k++) {
     i = biglist[k].index;
-
-    //if (biglist[k].bonded == 1 ) nbond++;//jifu
-
+    
+    //if (biglist[k].bonded == 1) {nbond++;printf("bonded! %i\n",i);}//jifu
+    //if (nbond != 0) printf("nbond %d\n",nbond);//jifu
     // sphere
     // set omega from atom->omega directly
 
@@ -4232,21 +4239,22 @@ void FixSRD::big_bond(Big *big)
   double rad=big->radius;
   int bonded =0;
 
-  
-  if (big->bonded != 1){
-    for (int j=0;j<nwall;j++)
-      {
-	//	printf("nwall %d, %d\n",j,nwall);//jifu
-	//if (i==8) printf("status %d\n",big->bonded);//jifu
-	bonded = bond_wall(x[i],j,rad);
-	if (bonded) {
-	  //printf("nbond %d, %d,%d\n",i,nbond,j);//jifu
-	  nbond++;
-	  big->bonded = 1;
-	  //bonded=0;
-	  //break;
+  if (big->type != WALL) {
+    if (big->bonded != 1){
+      for (int j=0;j<nwall;j++)
+	{
+	  //	printf("nwall %d, %d\n",j,nwall);//jifu
+	  //if (i==8) printf("status %d\n",big->bonded);//jifu
+	  bonded = bond_wall(x[i],j,rad);
+	  if (bonded) {
+	    //printf("nbond %d, %d,%d\n",i,nbond,j);//jifu
+	    //nbond++;
+	    big->bonded = 1;
+	    //bonded=0;
+	    break;
+	  }
 	}
-      }
+    }
   }
 }
 
