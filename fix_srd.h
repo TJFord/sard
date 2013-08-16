@@ -193,11 +193,13 @@ class FixSRD : public Fix {
   // private functions
 
   void reset_velocities();
+  void reset_velocities_srdlike();//jifu
   void vbin_comm(int);
   void vbin_pack(BinAve *, int, int *, double *);
   void vbin_unpack(double *, BinAve *, int, int *);
 
   void collisions_single();
+  void collisions_single_srdlike();
   void collisions_multi();
 
   int inside_sphere(double *, double *, Big *);
